@@ -31,6 +31,11 @@ This project uses Phoenix with LiveView and Ecto, with PostgreSQL running in Doc
 2. `mix setup` - Install deps and setup database
 3. `mix phx.server` - Start server
 
+### Continuous Integration
+- GitHub Actions automatically run tests on push/PR to main branch
+- Includes: formatting checks, compilation, tests, dependency checks
+- Uses PostgreSQL service for database tests
+
 ## Architecture
 
 As a saga orchestration engine, this project will implement:
