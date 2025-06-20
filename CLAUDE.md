@@ -8,14 +8,28 @@ Kawa is a distributed saga orchestration engine built in Elixir. This project im
 
 ## Development Setup
 
-This project uses Elixir/OTP. Common development commands will likely include:
+This project uses Phoenix with LiveView and Ecto, with PostgreSQL running in Docker.
 
-- `mix deps.get` - Install dependencies
-- `mix compile` - Compile the project
+### Database Setup (Docker)
+- `docker-compose up -d` - Start PostgreSQL containers (dev + test)
+- `docker-compose down` - Stop PostgreSQL containers
+- `docker-compose logs db` - View database logs
+
+### Phoenix Development Commands
+- `mix setup` - Install dependencies and setup database
+- `mix deps.get` - Install dependencies only
+- `mix ecto.create` - Create the database
+- `mix ecto.migrate` - Run database migrations
+- `mix phx.server` - Start Phoenix server (http://localhost:4000)
+- `iex -S mix phx.server` - Start server in interactive mode
 - `mix test` - Run tests
 - `mix format` - Format code
-- `mix credo` - Static analysis (if Credo is added)
-- `mix dialyzer` - Type checking (if Dialyzer is configured)
+- `mix compile` - Compile the project
+
+**First-time setup:**
+1. `docker-compose up -d` - Start databases
+2. `mix setup` - Install deps and setup database
+3. `mix phx.server` - Start server
 
 ## Architecture
 
