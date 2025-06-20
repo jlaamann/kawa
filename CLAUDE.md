@@ -19,7 +19,7 @@ This project uses Elixir/OTP. Common development commands will likely include:
 
 ## Architecture
 
-As a saga orchestration engine, this project will likely implement:
+As a saga orchestration engine, this project will implement:
 
 - **Saga Coordinator**: Central orchestrator that manages saga execution
 - **Saga Definition**: DSL or configuration for defining saga workflows
@@ -32,6 +32,9 @@ The distributed nature suggests it will include:
 - State persistence and recovery
 - Error handling and retry logic
 - Monitoring and observability features
+
+### Client-server communication
+Clients will communicate with the orchestrator over WebSockets.
 
 ## Repository structure
 TODO
@@ -91,4 +94,131 @@ steps:
       args: ["{{ saga.input.user_email }}", "{{ saga.input.order_id }}"]
     # No compensation needed for email
     timeout: "10s"
+```
+
+## Application flows
+
+**Defining workflow in client:**
+```elixir
+# In client app's lib/workflows/order_workflow.ex
+defmodule EcommerceApp.Workflows.OrderWorkflow do
+  use Kawa.Workflow
+  
+  def run(order_data) do
+    workflow "ecommerce-order" do
+      step :reserve_inventory do
+        action fn -> InventoryService.reserve(order_data.product_id) end
+        compensation fn ctx -> InventoryService.release(ctx.reservation_id) end
+        timeout "30s"
+      end
+      
+      step :charge_payment, depends_on: [:reserve_inventory] do
+        action fn ctx -> 
+          PaymentService.charge(order_data.amount, order_data.payment_method)
+        end
+        compensation fn ctx -> PaymentService.refund(ctx.charge_id) end
+        timeout "45s"
+      end
+      
+      step :send_confirmation, depends_on: [:charge_payment] do
+        action fn ctx -> 
+          EmailService.send_confirmation(order_data.email, ctx.order_id)
+        end
+        # No compensation needed
+      end
+    end
+  end
+end
+```
+
+**Starting workflow from client:**
+```elixir
+# In client application
+{:ok, saga_id} = Kawa.Client.start_workflow(
+  EcommerceApp.Workflows.OrderWorkflow,
+  %{product_id: "123", amount: 99.99, email: "user@example.com"}
+)
+
+# Monitor progress
+Kawa.Client.get_status(saga_id)
+```
+
+**1. Client registers workflow on startup**
+```elixir
+# In client app's application.ex
+def start(_type, _args) do
+  # Connect to Kawa server
+  Kawa.Client.connect("http://kawa-server:4000")
+  
+  # Register workflows
+  Kawa.Client.register_workflow(EcommerceApp.Workflows.OrderWorkflow)
+  
+  # ... rest of supervision tree
+end
+```
+
+**2. Kawa server receives workflow definition**
+```elixir
+# Kawa stores the workflow code/definition
+%WorkflowDefinition{
+  name: "ecommerce-order",
+  module: "EcommerceApp.Workflows.OrderWorkflow", 
+  client_id: "ecommerce-app-1",
+  steps: [%{id: :reserve_inventory, ...}, ...]
+}
+```
+
+**3. When workflow executes, Kawa calls back to client:**
+```
+# Kawa -> Client: "Execute step :reserve_inventory"
+# Client -> Kawa: "Step completed with result: %{reservation_id: 'abc'}"
+# Kawa -> Client: "Execute step :charge_payment"
+```
+
+**WebSocket Connection Pattern:**
+
+```elixir
+# Client side
+defmodule MyApp.KawaClient do
+  use GenServer
+  
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  end
+  
+  def init(_) do
+    {:ok, socket} = connect_to_kawa()
+    {:ok, %{socket: socket, workflows: %{}}}
+  end
+  
+  # Handle step execution requests from Kawa
+  def handle_info({:execute_step, saga_id, step_id, input}, state) do
+    result = execute_workflow_step(step_id, input)
+    Phoenix.Channel.push(state.socket, "step_result", %{
+      saga_id: saga_id,
+      step_id: step_id, 
+      result: result
+    })
+    {:noreply, state}
+  end
+end
+```
+
+**Connection Management:**
+
+```elixir
+# Kawa server tracks client connections
+defmodule Kawa.ClientRegistry do
+  # When client connects
+  def client_connected(client_id, socket_pid) do
+    # Resume paused sagas for this client
+    Kawa.SagaManager.resume_client_sagas(client_id)
+  end
+  
+  # When client disconnects  
+  def client_disconnected(client_id) do
+    # Pause running sagas for this client
+    Kawa.SagaManager.pause_client_sagas(client_id)
+  end
+end
 ```
