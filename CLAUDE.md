@@ -58,9 +58,6 @@ Clients will communicate with the orchestrator over WebSockets.
 ### Database schema
 Database schema is defined in a UML file located in docs/schema.uml.
 
-## Repository structure
-TODO
-
 ## Key Concepts
 
 - **Saga Pattern**: Long-running business transactions split into steps
