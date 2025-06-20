@@ -1,0 +1,107 @@
+erDiagram
+    clients {
+        binary_id id PK
+        string name UK
+        string version
+        string status
+        datetime last_heartbeat_at
+        jsonb connection_metadata
+        datetime registered_at
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    workflow_definitions {
+        binary_id id PK
+        string name
+        string version
+        binary_id client_id FK
+        string module_name
+        jsonb definition
+        integer timeout
+        jsonb retry_policy
+        boolean is_active
+        array validation_errors
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    sagas {
+        binary_id id PK
+        binary_id workflow_definition_id FK
+        binary_id client_id FK
+        string name
+        string status
+        jsonb input
+        jsonb context
+        string current_step_id
+        array steps_completed
+        array steps_failed
+        array compensation_steps_completed
+        text error_message
+        jsonb error_details
+        datetime started_at
+        datetime completed_at
+        datetime timeout_at
+        integer retry_count
+        jsonb metadata
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    saga_events {
+        binary_id id PK
+        binary_id saga_id FK
+        string event_type
+        string step_id
+        jsonb payload
+        jsonb error_details
+        integer duration_ms
+        datetime occurred_at
+        datetime inserted_at
+    }
+
+    saga_steps {
+        binary_id id PK
+        binary_id saga_id FK
+        string step_id
+        string status
+        string step_type
+        jsonb input
+        jsonb output
+        text error_message
+        jsonb error_details
+        datetime started_at
+        datetime completed_at
+        datetime timeout_at
+        integer retry_count
+        array depends_on
+        jsonb execution_metadata
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    saga_locks {
+        binary_id id PK
+        binary_id saga_id FK
+        string locked_by
+        datetime locked_at
+        datetime expires_at
+        datetime inserted_at
+    }
+
+    metrics {
+        binary_id id PK
+        string metric_name
+        float metric_value
+        jsonb labels
+        datetime recorded_at
+        datetime inserted_at
+    }
+
+    clients ||--o{ workflow_definitions : "registers"
+    clients ||--o{ sagas : "executes"
+    workflow_definitions ||--o{ sagas : "instantiates"
+    sagas ||--o{ saga_events : "logs"
+    sagas ||--o{ saga_steps : "contains"
+    sagas ||--o| saga_locks : "locks"
