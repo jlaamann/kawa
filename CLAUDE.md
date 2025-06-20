@@ -119,8 +119,8 @@ steps:
 ```
 
 ## Application flows
-
-**Defining workflow in client:**
+### Defining and starting workflows
+**Defining workflow in client (SDK approach):**
 ```elixir
 # In client app's lib/workflows/order_workflow.ex
 defmodule EcommerceApp.Workflows.OrderWorkflow do
@@ -165,6 +165,14 @@ end
 Kawa.Client.get_status(saga_id)
 ```
 
+**When workflow executes, Kawa calls back to client:**
+```
+# Kawa -> Client: "Execute step :reserve_inventory"
+# Client -> Kawa: "Step completed with result: %{reservation_id: 'abc'}"
+# Kawa -> Client: "Execute step :charge_payment"
+```
+
+### Registering workflows
 **1. Client registers workflow on startup**
 ```elixir
 # In client app's application.ex
@@ -190,14 +198,7 @@ end
 }
 ```
 
-**3. When workflow executes, Kawa calls back to client:**
-```
-# Kawa -> Client: "Execute step :reserve_inventory"
-# Client -> Kawa: "Step completed with result: %{reservation_id: 'abc'}"
-# Kawa -> Client: "Execute step :charge_payment"
-```
-
-**WebSocket Connection Pattern:**
+### WebSocket Connection Pattern
 
 ```elixir
 # Client side
