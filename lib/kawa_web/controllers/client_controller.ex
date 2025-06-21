@@ -1,7 +1,8 @@
 defmodule KawaWeb.ClientController do
   use KawaWeb, :controller
 
-  alias Kawa.{Client, Repo}
+  alias Kawa.{Repo}
+  alias Kawa.Schemas.Client
 
   @doc """
   Creates a new client with generated API key.

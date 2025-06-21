@@ -1,4 +1,4 @@
-defmodule Kawa.ApiKey do
+defmodule Kawa.Utils.ApiKey do
   @moduledoc """
   Utilities for generating and managing API keys for Kawa clients.
   """
@@ -10,7 +10,7 @@ defmodule Kawa.ApiKey do
 
   ## Examples
 
-      iex> {api_key, hash, prefix} = Kawa.ApiKey.generate("prod")
+      iex> {api_key, hash, prefix} = Kawa.Utils.ApiKey.generate("prod")
       iex> String.starts_with?(api_key, "kawa_prod_")
       true
       iex> prefix

@@ -1,4 +1,4 @@
-defmodule Kawa.Client do
+defmodule Kawa.Schemas.Client do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -65,7 +65,7 @@ defmodule Kawa.Client do
   defp generate_api_key(changeset) do
     if changeset.valid? do
       environment = get_field(changeset, :environment)
-      {api_key, api_key_hash, api_key_prefix} = Kawa.ApiKey.generate(environment)
+      {api_key, api_key_hash, api_key_prefix} = Kawa.Utils.ApiKey.generate(environment)
 
       changeset
       |> put_change(:api_key, api_key)
