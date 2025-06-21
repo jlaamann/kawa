@@ -1,6 +1,8 @@
 # kawa
 A distributed saga orchestration engine in Elixir
 
+かわ [kawa] - river, stream, brook
+
 ## Vision
 - **Developer Experience First**: (offer language specific SDKs)
 - **Extreme Concurrency**
