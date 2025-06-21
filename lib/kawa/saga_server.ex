@@ -14,7 +14,7 @@ defmodule Kawa.SagaServer do
   alias Kawa.ClientRegistry
   alias Kawa.StepDependencyResolver
   alias Kawa.StepStateMachine
-  alias Kawa.SagaContext
+  alias Kawa.Contexts.SagaContext
   alias Kawa.StepExecutionProtocol
   alias Kawa.StepResultValidator
   alias Kawa.StepExecutionTracker

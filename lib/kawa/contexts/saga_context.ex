@@ -1,4 +1,4 @@
-defmodule Kawa.SagaContext do
+defmodule Kawa.Contexts.SagaContext do
   @moduledoc """
   Manages saga execution context and data flow between steps.
 
@@ -16,10 +16,10 @@ defmodule Kawa.SagaContext do
 
   ## Examples
 
-      iex> Kawa.SagaContext.new()
+      iex> Kawa.Contexts.SagaContext.new()
       %{}
 
-      iex> Kawa.SagaContext.new(%{initial_data: "value"})
+      iex> Kawa.Contexts.SagaContext.new(%{initial_data: "value"})
       %{initial_data: "value"}
   """
   def new(initial_data \\ %{}) when is_map(initial_data) do
@@ -34,7 +34,7 @@ defmodule Kawa.SagaContext do
   ## Examples
 
       iex> context = %{}
-      iex> Kawa.SagaContext.add_step_result(context, "step1", %{result: "success"})
+      iex> Kawa.Contexts.SagaContext.add_step_result(context, "step1", %{result: "success"})
       %{"step1" => %{result: "success"}}
   """
   def add_step_result(context, step_id, result) when is_map(context) and is_binary(step_id) do
@@ -49,10 +49,10 @@ defmodule Kawa.SagaContext do
   ## Examples
 
       iex> context = %{"step1" => %{result: "success"}}
-      iex> Kawa.SagaContext.get_step_result(context, "step1")
+      iex> Kawa.Contexts.SagaContext.get_step_result(context, "step1")
       %{result: "success"}
 
-      iex> Kawa.SagaContext.get_step_result(context, "nonexistent")
+      iex> Kawa.Contexts.SagaContext.get_step_result(context, "nonexistent")
       nil
   """
   def get_step_result(context, step_id) when is_map(context) and is_binary(step_id) do
@@ -65,7 +65,7 @@ defmodule Kawa.SagaContext do
   ## Examples
 
       iex> context = %{}
-      iex> Kawa.SagaContext.get_step_result(context, "step1", %{default: true})
+      iex> Kawa.Contexts.SagaContext.get_step_result(context, "step1", %{default: true})
       %{default: true}
   """
   def get_step_result(context, step_id, default) when is_map(context) and is_binary(step_id) do
@@ -81,7 +81,7 @@ defmodule Kawa.SagaContext do
 
       iex> context = %{"step1" => %{user_id: 123}}
       iex> step_def = %{"input" => %{action: "create"}, "depends_on" => ["step1"]}
-      iex> Kawa.SagaContext.build_step_input(context, step_def)
+      iex> Kawa.Contexts.SagaContext.build_step_input(context, step_def)
       %{action: "create", user_id: 123}
   """
   def build_step_input(context, step_definition)
@@ -111,10 +111,10 @@ defmodule Kawa.SagaContext do
   ## Examples
 
       iex> context = %{"step1" => %{user: %{id: 123, name: "Alice"}}}
-      iex> Kawa.SagaContext.extract_value(context, "step1.user.id")
+      iex> Kawa.Contexts.SagaContext.extract_value(context, "step1.user.id")
       123
 
-      iex> Kawa.SagaContext.extract_value(context, "step1.user.email", "default@example.com")
+      iex> Kawa.Contexts.SagaContext.extract_value(context, "step1.user.email", "default@example.com")
       "default@example.com"
   """
   def extract_value(context, path, default \\ nil) when is_map(context) and is_binary(path) do

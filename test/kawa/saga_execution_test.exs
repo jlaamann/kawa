@@ -7,11 +7,12 @@ defmodule Kawa.SagaExecutionTest do
     SagaSupervisor,
     StepDependencyResolver,
     StepStateMachine,
-    SagaContext,
     StepExecutionProtocol,
     StepResultValidator,
     StepExecutionTracker
   }
+
+  alias Kawa.Contexts.SagaContext
 
   alias Kawa.Schemas.{Saga, WorkflowDefinition, Client}
 
