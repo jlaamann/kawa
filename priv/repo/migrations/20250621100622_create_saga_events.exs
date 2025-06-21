@@ -18,14 +18,18 @@ defmodule Kawa.Repo.Migrations.CreateSagaEvents do
     end
 
     # Constraints
-    create constraint(:saga_events, :saga_events_event_type_length_check, 
-      check: "length(event_type) > 0")
-    create constraint(:saga_events, :saga_events_duration_check, 
-      check: "duration_ms IS NULL OR duration_ms >= 0")
+    create constraint(:saga_events, :saga_events_event_type_length_check,
+             check: "length(event_type) > 0"
+           )
+
+    create constraint(:saga_events, :saga_events_duration_check,
+             check: "duration_ms IS NULL OR duration_ms >= 0"
+           )
 
     # Unique constraints
-    create unique_index(:saga_events, [:saga_id, :sequence_number], 
-      name: :uk_saga_events_saga_sequence)
+    create unique_index(:saga_events, [:saga_id, :sequence_number],
+             name: :uk_saga_events_saga_sequence
+           )
 
     # Indexes for performance
     create index(:saga_events, [:saga_id, :sequence_number], name: :idx_saga_events_saga_sequence)

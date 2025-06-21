@@ -22,22 +22,30 @@ defmodule Kawa.Repo.Migrations.CreateSagaSteps do
     end
 
     # Constraints
-    create constraint(:saga_steps, :saga_steps_status_check, 
-      check: "status IN ('pending', 'running', 'completed', 'failed', 'compensating', 'compensated', 'skipped')")
-    create constraint(:saga_steps, :saga_steps_step_type_check, 
-      check: "step_type IN ('action', 'compensation')")
-    create constraint(:saga_steps, :saga_steps_retry_count_check, 
-      check: "retry_count >= 0")
-    create constraint(:saga_steps, :saga_steps_step_id_length_check, 
-      check: "length(step_id) > 0")
+    create constraint(:saga_steps, :saga_steps_status_check,
+             check:
+               "status IN ('pending', 'running', 'completed', 'failed', 'compensating', 'compensated', 'skipped')"
+           )
+
+    create constraint(:saga_steps, :saga_steps_step_type_check,
+             check: "step_type IN ('action', 'compensation')"
+           )
+
+    create constraint(:saga_steps, :saga_steps_retry_count_check, check: "retry_count >= 0")
+    create constraint(:saga_steps, :saga_steps_step_id_length_check, check: "length(step_id) > 0")
 
     # Unique constraints
-    create unique_index(:saga_steps, [:saga_id, :step_id, :step_type], 
-      name: :uk_saga_steps_saga_step_type)
+    create unique_index(:saga_steps, [:saga_id, :step_id, :step_type],
+             name: :uk_saga_steps_saga_step_type
+           )
 
     # Indexes for performance
     create index(:saga_steps, [:saga_id, :status], name: :idx_saga_steps_saga_status)
-    create index(:saga_steps, [:status], where: "status IN ('running', 'failed')", name: :idx_saga_steps_status)
+
+    create index(:saga_steps, [:status],
+             where: "status IN ('running', 'failed')",
+             name: :idx_saga_steps_status
+           )
   end
 
   def down do

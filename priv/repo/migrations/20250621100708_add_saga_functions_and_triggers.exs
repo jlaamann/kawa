@@ -97,7 +97,9 @@ defmodule Kawa.Repo.Migrations.AddSagaFunctionsAndTriggers do
 
     # Add column comments
     execute "COMMENT ON COLUMN sagas.correlation_id IS 'User-provided identifier for external tracking'"
+
     execute "COMMENT ON COLUMN saga_events.sequence_number IS 'Auto-incrementing sequence per saga for event ordering'"
+
     execute "COMMENT ON COLUMN workflow_definitions.definition_checksum IS 'MD5 hash for detecting workflow changes'"
   end
 
@@ -105,7 +107,9 @@ defmodule Kawa.Repo.Migrations.AddSagaFunctionsAndTriggers do
     # Drop triggers
     execute "DROP TRIGGER IF EXISTS trigger_set_saga_event_sequence ON saga_events"
     execute "DROP TRIGGER IF EXISTS trigger_clients_updated_at ON clients"
+
     execute "DROP TRIGGER IF EXISTS trigger_workflow_definitions_updated_at ON workflow_definitions"
+
     execute "DROP TRIGGER IF EXISTS trigger_sagas_updated_at ON sagas"
     execute "DROP TRIGGER IF EXISTS trigger_saga_steps_updated_at ON saga_steps"
     execute "DROP TRIGGER IF EXISTS trigger_workflow_steps_updated_at ON workflow_steps"

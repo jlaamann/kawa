@@ -21,19 +21,26 @@ defmodule Kawa.Repo.Migrations.CreateClients do
     end
 
     # Constraints
-    create constraint(:clients, :clients_status_check, 
-      check: "status IN ('connected', 'disconnected', 'error')")
-    create constraint(:clients, :clients_heartbeat_interval_check, 
-      check: "heartbeat_interval_ms > 0")
-    create constraint(:clients, :clients_name_length_check, 
-      check: "length(name) > 0")
+    create constraint(:clients, :clients_status_check,
+             check: "status IN ('connected', 'disconnected', 'error')"
+           )
+
+    create constraint(:clients, :clients_heartbeat_interval_check,
+             check: "heartbeat_interval_ms > 0"
+           )
+
+    create constraint(:clients, :clients_name_length_check, check: "length(name) > 0")
 
     # Unique constraints
     create unique_index(:clients, [:name], name: :uk_clients_name)
 
     # Indexes for performance
     create index(:clients, [:status], where: "status = 'connected'", name: :idx_clients_status)
-    create index(:clients, [:last_heartbeat_at], where: "status = 'connected'", name: :idx_clients_heartbeat)
+
+    create index(:clients, [:last_heartbeat_at],
+             where: "status = 'connected'",
+             name: :idx_clients_heartbeat
+           )
   end
 
   def down do
