@@ -16,7 +16,7 @@ defmodule Kawa.Schemas.Client do
     field :heartbeat_interval_ms, :integer, default: 30000
     field :registered_at, :utc_datetime
     field :api_key_hash, :string
-    field :environment, :string, default: "dev"
+    field :environment, :string
     field :api_key_prefix, :string
 
     # Virtual field for the actual API key (not stored)
@@ -51,8 +51,8 @@ defmodule Kawa.Schemas.Client do
     |> validate_inclusion(:environment, @valid_environments)
     |> validate_length(:name, min: 1, max: 255)
     |> validate_number(:heartbeat_interval_ms, greater_than: 0)
-    |> unique_constraint(:name)
-    |> unique_constraint(:api_key_hash)
+    |> unique_constraint(:name, name: :uk_clients_name)
+    |> unique_constraint(:api_key_hash, name: :uk_clients_api_key_hash)
   end
 
   def create_changeset(client, attrs) do

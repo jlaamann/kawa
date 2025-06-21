@@ -90,27 +90,35 @@ defmodule KawaWeb.ClientController do
   Shows a specific client (without API key for security).
   """
   def show(conn, %{"id" => id}) do
-    case Repo.get(Client, id) do
-      nil ->
+    case Ecto.UUID.cast(id) do
+      {:ok, uuid} ->
+        case Repo.get(Client, uuid) do
+          nil ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "Client not found"})
+
+          client ->
+            json(conn, %{
+              client: %{
+                id: client.id,
+                name: client.name,
+                environment: client.environment,
+                status: client.status,
+                api_key_prefix: client.api_key_prefix,
+                registered_at: client.registered_at,
+                last_heartbeat_at: client.last_heartbeat_at,
+                connection_metadata: client.connection_metadata,
+                capabilities: client.capabilities,
+                last_metrics: client.last_metrics
+              }
+            })
+        end
+
+      :error ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "Client not found"})
-
-      client ->
-        json(conn, %{
-          client: %{
-            id: client.id,
-            name: client.name,
-            environment: client.environment,
-            status: client.status,
-            api_key_prefix: client.api_key_prefix,
-            registered_at: client.registered_at,
-            last_heartbeat_at: client.last_heartbeat_at,
-            connection_metadata: client.connection_metadata,
-            capabilities: client.capabilities,
-            last_metrics: client.last_metrics
-          }
-        })
     end
   end
 
