@@ -10,6 +10,9 @@ erDiagram
         jsonb last_metrics "Latest CPU, memory, saga count, etc"
         integer heartbeat_interval_ms "Expected heartbeat frequency"
         datetime registered_at
+        string api_key_hash UK "SHA256 hash of API key for authentication"
+        string environment "dev|staging|prod, used in API key generation"
+        string api_key_prefix "First 8 chars of API key for identification"
         datetime inserted_at
         datetime updated_at
     }
