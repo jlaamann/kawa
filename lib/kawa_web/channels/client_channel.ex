@@ -1,7 +1,8 @@
 defmodule KawaWeb.ClientChannel do
   use KawaWeb, :channel
 
-  alias Kawa.{Repo, ClientRegistry}
+  alias Kawa.{Repo}
+  alias Kawa.Core.ClientRegistry
   alias Kawa.Schemas.Client
   alias Kawa.Utils.ApiKey
 
@@ -52,7 +53,7 @@ defmodule KawaWeb.ClientChannel do
   def handle_in("register_workflow", %{"workflow" => workflow_def}, socket) do
     client = socket.assigns.client
 
-    case Kawa.WorkflowValidator.validate(workflow_def) do
+    case Kawa.Validation.WorkflowValidator.validate(workflow_def) do
       {:ok, validated_workflow} ->
         Logger.info(
           "Client #{client.name} registering valid workflow: #{validated_workflow["name"]}"

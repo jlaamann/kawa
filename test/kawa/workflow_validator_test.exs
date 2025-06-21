@@ -1,7 +1,7 @@
-defmodule Kawa.WorkflowValidatorTest do
+defmodule Kawa.Validation.WorkflowValidatorTest do
   use ExUnit.Case, async: true
 
-  alias Kawa.WorkflowValidator
+  alias Kawa.Validation.WorkflowValidator
 
   describe "validate/1 with valid workflows" do
     test "validates a simple HTTP workflow" do

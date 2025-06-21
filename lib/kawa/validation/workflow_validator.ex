@@ -1,4 +1,4 @@
-defmodule Kawa.WorkflowValidator do
+defmodule Kawa.Validation.WorkflowValidator do
   @moduledoc """
   Validates workflow definitions to ensure they are valid saga configurations.
 
@@ -9,6 +9,8 @@ defmodule Kawa.WorkflowValidator do
   - Timeout and URL format validation
   - Detailed error messages with field/line information
   """
+
+  alias Kawa.Utils.TopologicalSort
 
   @type validation_error :: %{
           field: String.t(),
@@ -597,17 +599,17 @@ defmodule Kawa.WorkflowValidator do
 
     # Only process if steps is actually a list
     if is_list(steps) do
-      # Build dependency graph
-      graph =
+      filtered_steps =
         steps
         |> Enum.filter(&is_map/1)
-        |> Enum.reduce(%{}, fn step, acc ->
-          step_id = Map.get(step, "id")
-          deps = Map.get(step, "depends_on", [])
-          Map.put(acc, step_id, deps)
+        |> Enum.map(fn step ->
+          %{
+            "id" => Map.get(step, "id"),
+            "depends_on" => Map.get(step, "depends_on", [])
+          }
         end)
 
-      case detect_cycles(graph) do
+      case TopologicalSort.detect_cycles(filtered_steps) do
         [] ->
           errors
 
@@ -629,96 +631,6 @@ defmodule Kawa.WorkflowValidator do
     else
       errors
     end
-  end
-
-  # Topological sorting to detect circular dependencies
-  defp detect_cycles(graph) do
-    case topological_sort(graph) do
-      {:ok, _sorted} -> []
-      {:error, cycles} -> cycles
-    end
-  end
-
-  defp topological_sort(graph) do
-    # Kahn's algorithm for topological sorting
-    in_degree = calculate_in_degrees(graph)
-
-    queue =
-      :queue.from_list(
-        Enum.filter(Map.keys(graph), fn node -> Map.get(in_degree, node, 0) == 0 end)
-      )
-
-    process_nodes(queue, graph, in_degree, [])
-  end
-
-  defp calculate_in_degrees(graph) do
-    Enum.reduce(graph, %{}, fn {node, deps}, acc ->
-      acc = Map.put_new(acc, node, 0)
-
-      Enum.reduce(deps, acc, fn dep, acc2 ->
-        Map.update(acc2, dep, 1, &(&1 + 1))
-      end)
-    end)
-  end
-
-  defp process_nodes(queue, graph, in_degree, sorted) do
-    case :queue.out(queue) do
-      {{:value, node}, new_queue} ->
-        new_sorted = [node | sorted]
-        dependencies = Map.get(graph, node, [])
-
-        {new_queue, new_in_degree} =
-          Enum.reduce(dependencies, {new_queue, in_degree}, fn dep, {q, in_deg} ->
-            new_degree = Map.get(in_deg, dep) - 1
-            new_in_deg = Map.put(in_deg, dep, new_degree)
-
-            if new_degree == 0 do
-              {:queue.in(dep, q), new_in_deg}
-            else
-              {q, new_in_deg}
-            end
-          end)
-
-        process_nodes(new_queue, graph, new_in_degree, new_sorted)
-
-      {:empty, _} ->
-        if length(sorted) == map_size(graph) do
-          {:ok, Enum.reverse(sorted)}
-        else
-          # Find remaining nodes (these form cycles)
-          remaining = MapSet.difference(MapSet.new(Map.keys(graph)), MapSet.new(sorted))
-          cycles = find_cycles_in_remaining(graph, MapSet.to_list(remaining))
-          {:error, cycles}
-        end
-    end
-  end
-
-  defp find_cycles_in_remaining(graph, remaining) do
-    # Simple cycle detection for remaining nodes
-    Enum.reduce(remaining, [], fn node, acc ->
-      case find_cycle_from_node(graph, node, [node], MapSet.new([node])) do
-        nil -> acc
-        cycle -> [cycle | acc]
-      end
-    end)
-  end
-
-  defp find_cycle_from_node(graph, current, path, visited) do
-    deps = Map.get(graph, current, [])
-
-    Enum.find_value(deps, fn dep ->
-      cond do
-        dep in path ->
-          Enum.drop_while(path, &(&1 != dep))
-
-        MapSet.member?(visited, dep) ->
-          nil
-
-        true ->
-          new_visited = MapSet.put(visited, dep)
-          find_cycle_from_node(graph, dep, [dep | path], new_visited)
-      end
-    end)
   end
 
   defp parse_timeout(timeout_str) do

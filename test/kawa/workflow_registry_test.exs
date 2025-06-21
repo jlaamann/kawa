@@ -1,7 +1,7 @@
-defmodule Kawa.WorkflowRegistryTest do
+defmodule Kawa.Core.WorkflowRegistryTest do
   use ExUnit.Case, async: true
-  alias Kawa.WorkflowRegistry
-  alias Kawa.WorkflowRegistry.WorkflowDefinition
+  alias Kawa.Core.WorkflowRegistry
+  alias Kawa.Core.WorkflowRegistry.WorkflowDefinition
 
   setup do
     registry_name = :"test_registry_#{System.unique_integer()}"
@@ -25,19 +25,6 @@ defmodule Kawa.WorkflowRegistryTest do
           "id" => "step1",
           "type" => "http",
           "action" => %{"method" => "POST", "url" => "http://example.com"}
-        }
-      ]
-    }
-  end
-
-  defp valid_webhook_workflow_definition(name \\ "webhook-workflow") do
-    %{
-      "name" => name,
-      "steps" => [
-        %{
-          "id" => "webhook_step",
-          "type" => "webhook",
-          "action" => %{"url" => "https://webhook.example.com"}
         }
       ]
     }
