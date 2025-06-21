@@ -107,6 +107,10 @@ CREATE TABLE public.clients (
     registered_at timestamp(0) without time zone DEFAULT now() NOT NULL,
     inserted_at timestamp(0) without time zone NOT NULL,
     updated_at timestamp(0) without time zone NOT NULL,
+    api_key_hash character varying(255) NOT NULL,
+    environment character varying(20) DEFAULT 'dev'::character varying NOT NULL,
+    api_key_prefix character varying(8) NOT NULL,
+    CONSTRAINT clients_environment_check CHECK (((environment)::text = ANY ((ARRAY['dev'::character varying, 'staging'::character varying, 'prod'::character varying])::text[]))),
     CONSTRAINT clients_heartbeat_interval_check CHECK ((heartbeat_interval_ms > 0)),
     CONSTRAINT clients_name_length_check CHECK ((length((name)::text) > 0)),
     CONSTRAINT clients_status_check CHECK (((status)::text = ANY ((ARRAY['connected'::character varying, 'disconnected'::character varying, 'error'::character varying])::text[])))
@@ -479,6 +483,13 @@ CREATE INDEX idx_workflow_definitions_name ON public.workflow_definitions USING 
 --
 
 CREATE INDEX idx_workflow_steps_definition ON public.workflow_steps USING btree (workflow_definition_id);
+
+
+--
+-- Name: uk_clients_api_key_hash; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX uk_clients_api_key_hash ON public.clients USING btree (api_key_hash);
 
 
 --
