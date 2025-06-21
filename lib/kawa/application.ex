@@ -14,6 +14,8 @@ defmodule Kawa.Application do
       {Phoenix.PubSub, name: Kawa.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Kawa.Finch},
+      # Start the client registry for WebSocket connections
+      Kawa.ClientRegistry,
       # Start a worker by calling: Kawa.Worker.start_link(arg)
       # {Kawa.Worker, arg},
       # Start to serve requests, typically the last entry
