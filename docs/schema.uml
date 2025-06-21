@@ -1,11 +1,14 @@
 erDiagram
-    clients {
+   clients {
         binary_id id PK
-        string name UK
+        string name UK "Unique client identifier"
         string version
-        string status
+        string status "connected|disconnected|error"
         datetime last_heartbeat_at
         jsonb connection_metadata
+        jsonb capabilities "Client feature flags"
+        jsonb last_metrics "Latest CPU, memory, saga count, etc"
+        integer heartbeat_interval_ms "Expected heartbeat frequency"
         datetime registered_at
         datetime inserted_at
         datetime updated_at
@@ -18,10 +21,12 @@ erDiagram
         binary_id client_id FK
         string module_name
         jsonb definition
-        integer timeout
-        jsonb retry_policy
+        string definition_checksum "MD5 hash for change detection"
+        integer default_timeout_ms
+        jsonb default_retry_policy
         boolean is_active
-        array validation_errors
+        jsonb validation_errors
+        datetime registered_at
         datetime inserted_at
         datetime updated_at
     }
@@ -30,21 +35,35 @@ erDiagram
         binary_id id PK
         binary_id workflow_definition_id FK
         binary_id client_id FK
-        string name
-        string status
-        jsonb input
-        jsonb context
-        string current_step_id
-        array steps_completed
-        array steps_failed
-        array compensation_steps_completed
-        text error_message
-        jsonb error_details
+        string correlation_id UK "External tracking ID"
+        string status "pending|running|paused|completed|failed|compensating|compensated"
+        jsonb input "Initial workflow input"
+        jsonb context "Accumulated context from steps"
+        jsonb metadata "User-defined metadata"
+        datetime started_at
+        datetime completed_at
+        datetime paused_at
+        datetime timeout_at
+        integer total_retry_count
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    saga_steps {
+        binary_id id PK
+        binary_id saga_id FK
+        string step_id "Human-readable step identifier (e.g. 'reserve_inventory')"
+        string status "pending|running|completed|failed|compensating|compensated|skipped"
+        string step_type "action|compensation"
+        jsonb input "Input data for this step"
+        jsonb output "Output data from step execution"
+        jsonb error_details "Structured error information"
         datetime started_at
         datetime completed_at
         datetime timeout_at
         integer retry_count
-        jsonb metadata
+        array depends_on "Step IDs this step depends on"
+        jsonb execution_metadata "Timing, client info, etc"
         datetime inserted_at
         datetime updated_at
     }
@@ -52,56 +71,32 @@ erDiagram
     saga_events {
         binary_id id PK
         binary_id saga_id FK
-        string event_type
-        string step_id
-        jsonb payload
-        jsonb error_details
-        integer duration_ms
+        bigint sequence_number "Auto-incrementing per saga"
+        string event_type "saga_started|step_started|step_completed|step_failed|saga_completed|saga_failed|compensation_started|etc"
+        string step_id "Null for saga-level events"
+        jsonb payload "Event-specific data"
+        jsonb before_state "State before event (optional)"
+        jsonb after_state "State after event (optional)"
+        integer duration_ms "For completed events"
         datetime occurred_at
         datetime inserted_at
     }
 
-    saga_steps {
+    workflow_steps {
         binary_id id PK
-        binary_id saga_id FK
+        binary_id workflow_definition_id FK
         string step_id
-        string status
-        string step_type
-        jsonb input
-        jsonb output
-        text error_message
-        jsonb error_details
-        datetime started_at
-        datetime completed_at
-        datetime timeout_at
-        integer retry_count
-        array depends_on
-        jsonb execution_metadata
+        string step_name
+        jsonb step_definition "Action, compensation, timeout, etc"
+        array depends_on "Step dependencies"
+        integer execution_order "Topologically sorted order"
         datetime inserted_at
         datetime updated_at
-    }
-
-    saga_locks {
-        binary_id id PK
-        binary_id saga_id FK
-        string locked_by
-        datetime locked_at
-        datetime expires_at
-        datetime inserted_at
-    }
-
-    metrics {
-        binary_id id PK
-        string metric_name
-        float metric_value
-        jsonb labels
-        datetime recorded_at
-        datetime inserted_at
     }
 
     clients ||--o{ workflow_definitions : "registers"
     clients ||--o{ sagas : "executes"
     workflow_definitions ||--o{ sagas : "instantiates"
+    workflow_definitions ||--o{ workflow_steps : "defines"
     sagas ||--o{ saga_events : "logs"
     sagas ||--o{ saga_steps : "contains"
-    sagas ||--o| saga_locks : "locks"
