@@ -224,10 +224,10 @@ defmodule Kawa.WorkflowValidator do
   end
 
   defp validate_step_type(errors, step, step_path) do
-    valid_types = ["http", "elixir", "async"]
+    valid_types = ["http", "elixir"]
 
     case Map.get(step, "type") do
-      type when type in ["http", "elixir", "async"] ->
+      type when type in ["http", "elixir"] ->
         errors
 
       nil ->
