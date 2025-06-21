@@ -50,11 +50,25 @@ defmodule KawaWeb.ClientChannel do
 
   @impl true
   def handle_in("register_workflow", %{"workflow" => workflow_def}, socket) do
-    # TODO: Implement workflow registration
     client = socket.assigns.client
-    Logger.info("Client #{client.name} registering workflow: #{workflow_def["name"]}")
 
-    {:reply, {:ok, %{status: "workflow_registered"}}, socket}
+    case Kawa.WorkflowValidator.validate(workflow_def) do
+      {:ok, validated_workflow} ->
+        Logger.info(
+          "Client #{client.name} registering valid workflow: #{validated_workflow["name"]}"
+        )
+
+        # TODO: Store workflow definition in database
+        {:reply, {:ok, %{status: "workflow_registered", workflow_id: validated_workflow["name"]}},
+         socket}
+
+      {:error, validation_errors} ->
+        Logger.warning(
+          "Client #{client.name} submitted invalid workflow: #{inspect(validation_errors)}"
+        )
+
+        {:reply, {:error, %{reason: "validation_failed", errors: validation_errors}}, socket}
+    end
   end
 
   @impl true
