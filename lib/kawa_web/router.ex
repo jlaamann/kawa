@@ -20,10 +20,13 @@ defmodule KawaWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", KawaWeb do
-  #   pipe_through :api
-  # end
+  # API routes
+  scope "/api", KawaWeb do
+    pipe_through :api
+
+    # Client management
+    resources "/clients", ClientController, only: [:index, :show, :create]
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:kawa, :dev_routes) do
