@@ -15,17 +15,17 @@ defmodule Kawa.Application do
       # Start the Finch HTTP client for sending emails
       {Finch, name: Kawa.Finch},
       # Start the client registry for WebSocket connections
-      Kawa.ClientRegistry,
+      Kawa.Core.ClientRegistry,
       # Start the workflow registry
-      Kawa.WorkflowRegistry,
+      Kawa.Core.WorkflowRegistry,
       # Start the saga registry for process tracking
       {Registry, keys: :unique, name: Kawa.SagaRegistry},
       # Start the saga supervisor for managing saga processes
-      Kawa.SagaSupervisor,
+      Kawa.Core.SagaSupervisor,
       # Start the async step executor for timeout handling
-      Kawa.AsyncStepExecutor,
+      Kawa.Execution.AsyncStepExecutor,
       # Start the step execution tracker for monitoring
-      Kawa.StepExecutionTracker,
+      Kawa.Execution.StepExecutionTracker,
       # Start to serve requests, typically the last entry
       KawaWeb.Endpoint
     ]

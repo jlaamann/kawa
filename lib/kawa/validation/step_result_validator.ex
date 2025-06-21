@@ -1,4 +1,4 @@
-defmodule Kawa.StepResultValidator do
+defmodule Kawa.Validation.StepResultValidator do
   @moduledoc """
   Validates step results and handles errors with sophisticated validation rules.
 

@@ -1,4 +1,4 @@
-defmodule Kawa.SagaServer do
+defmodule Kawa.Core.SagaServer do
   @moduledoc """
   GenServer responsible for executing individual saga workflows.
 
@@ -11,13 +11,17 @@ defmodule Kawa.SagaServer do
 
   alias Kawa.Repo
   alias Kawa.Schemas.{Saga, SagaStep, SagaEvent}
-  alias Kawa.ClientRegistry
-  alias Kawa.StepDependencyResolver
-  alias Kawa.StepStateMachine
+  alias Kawa.Core.ClientRegistry
+
+  alias Kawa.Execution.{
+    StepDependencyResolver,
+    StepStateMachine,
+    StepExecutionProtocol,
+    StepExecutionTracker
+  }
+
   alias Kawa.Contexts.SagaContext
-  alias Kawa.StepExecutionProtocol
-  alias Kawa.StepResultValidator
-  alias Kawa.StepExecutionTracker
+  alias Kawa.Validation.StepResultValidator
   import Ecto.Query
 
   defmodule State do

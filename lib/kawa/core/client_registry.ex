@@ -1,4 +1,4 @@
-defmodule Kawa.ClientRegistry do
+defmodule Kawa.Core.ClientRegistry do
   @moduledoc """
   Registry for tracking connected WebSocket clients and their PIDs.
 

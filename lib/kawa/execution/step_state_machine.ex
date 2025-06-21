@@ -1,4 +1,4 @@
-defmodule Kawa.StepStateMachine do
+defmodule Kawa.Execution.StepStateMachine do
   @moduledoc """
   Manages step execution state transitions with validation and event tracking.
 

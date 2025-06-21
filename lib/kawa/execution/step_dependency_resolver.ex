@@ -1,4 +1,4 @@
-defmodule Kawa.StepDependencyResolver do
+defmodule Kawa.Execution.StepDependencyResolver do
   @moduledoc """
   Resolves step dependencies using topological sorting to determine execution order.
 

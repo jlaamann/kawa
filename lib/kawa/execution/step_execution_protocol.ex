@@ -1,4 +1,4 @@
-defmodule Kawa.StepExecutionProtocol do
+defmodule Kawa.Execution.StepExecutionProtocol do
   @moduledoc """
   Defines the message format and protocol for step execution between Kawa server and clients.
 

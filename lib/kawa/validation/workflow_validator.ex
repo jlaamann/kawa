@@ -1,4 +1,4 @@
-defmodule Kawa.WorkflowValidator do
+defmodule Kawa.Validation.WorkflowValidator do
   @moduledoc """
   Validates workflow definitions to ensure they are valid saga configurations.
 

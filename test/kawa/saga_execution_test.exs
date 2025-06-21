@@ -2,16 +2,16 @@ defmodule Kawa.SagaExecutionTest do
   use ExUnit.Case, async: false
   use Kawa.DataCase
 
-  alias Kawa.{
-    SagaServer,
-    SagaSupervisor,
+  alias Kawa.Core.{SagaServer, SagaSupervisor, ClientRegistry}
+
+  alias Kawa.Execution.{
     StepDependencyResolver,
     StepStateMachine,
     StepExecutionProtocol,
-    StepResultValidator,
     StepExecutionTracker
   }
 
+  alias Kawa.Validation.StepResultValidator
   alias Kawa.Contexts.SagaContext
 
   alias Kawa.Schemas.{Saga, WorkflowDefinition, Client}
@@ -100,7 +100,7 @@ defmodule Kawa.SagaExecutionTest do
 
       # Clean up client registry entries
       try do
-        Kawa.ClientRegistry.unregister_client(client.id)
+        ClientRegistry.unregister_client(client.id)
       rescue
         _ -> :ok
       end
@@ -337,7 +337,7 @@ defmodule Kawa.SagaExecutionTest do
       test_pid = self()
 
       # Register a mock client
-      Kawa.ClientRegistry.register_client(client.id, test_pid)
+      ClientRegistry.register_client(client.id, test_pid)
 
       # Start saga
       {:ok, _pid} = SagaSupervisor.start_saga(saga.id)
@@ -391,7 +391,7 @@ defmodule Kawa.SagaExecutionTest do
 
     test "handles step failures and triggers compensation", %{saga: saga, client: client} do
       # Register mock client
-      Kawa.ClientRegistry.register_client(client.id, self())
+      ClientRegistry.register_client(client.id, self())
 
       # Start saga
       {:ok, _pid} = SagaSupervisor.start_saga(saga.id)
@@ -462,7 +462,7 @@ defmodule Kawa.SagaExecutionTest do
   describe "Error handling and validation" do
     test "validates step results before marking complete", %{saga: saga, client: client} do
       # Register mock client
-      Kawa.ClientRegistry.register_client(client.id, self())
+      ClientRegistry.register_client(client.id, self())
 
       # Start saga
       {:ok, _pid} = SagaSupervisor.start_saga(saga.id)

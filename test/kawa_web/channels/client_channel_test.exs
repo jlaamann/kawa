@@ -2,7 +2,8 @@ defmodule KawaWeb.ClientChannelTest do
   use KawaWeb.ChannelCase
 
   alias KawaWeb.{UserSocket, ClientChannel}
-  alias Kawa.{Repo, ClientRegistry}
+  alias Kawa.{Repo}
+  alias Kawa.Core.ClientRegistry
   alias Kawa.Schemas.Client
 
   setup do

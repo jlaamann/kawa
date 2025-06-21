@@ -1,4 +1,4 @@
-defmodule Kawa.WorkflowRegistry do
+defmodule Kawa.Core.WorkflowRegistry do
   use GenServer
   require Logger
 
@@ -237,7 +237,7 @@ defmodule Kawa.WorkflowRegistry do
       nil ->
         definition = Map.get(params, :definition)
 
-        case Kawa.WorkflowValidator.validate(definition) do
+        case Kawa.Validation.WorkflowValidator.validate(definition) do
           {:ok, validated_definition} ->
             validated = %{
               definition: validated_definition,

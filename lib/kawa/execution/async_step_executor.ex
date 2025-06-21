@@ -1,4 +1,4 @@
-defmodule Kawa.AsyncStepExecutor do
+defmodule Kawa.Execution.AsyncStepExecutor do
   @moduledoc """
   Handles async step execution with timeout management and parallel processing.
 
@@ -10,7 +10,7 @@ defmodule Kawa.AsyncStepExecutor do
   use GenServer
   require Logger
 
-  alias Kawa.StepExecutionProtocol
+  alias Kawa.Execution.StepExecutionProtocol
 
   defmodule ExecutionState do
     @moduledoc false
@@ -149,7 +149,7 @@ defmodule Kawa.AsyncStepExecutor do
       ) do
     correlation_id = Keyword.get(opts, :correlation_id) || Ecto.UUID.generate()
     timeout_ms = Keyword.get(opts, :timeout_ms, 60_000)
-    callback_module = Keyword.get(opts, :callback_module, Kawa.SagaServer)
+    callback_module = Keyword.get(opts, :callback_module, Kawa.Core.SagaServer)
     metadata = Keyword.get(opts, :metadata, %{})
 
     # Create execution state
@@ -410,31 +410,31 @@ defmodule Kawa.AsyncStepExecutor do
   defp notify_callback(execution_state, result) do
     try do
       case execution_state.callback_module do
-        Kawa.SagaServer ->
+        Kawa.Core.SagaServer ->
           case result do
             {:completed, step_result, _execution_time} ->
-              Kawa.SagaServer.step_completed(
+              Kawa.Core.SagaServer.step_completed(
                 execution_state.saga_id,
                 execution_state.step_id,
                 step_result
               )
 
             {:failed, error, _execution_time} ->
-              Kawa.SagaServer.step_failed(
+              Kawa.Core.SagaServer.step_failed(
                 execution_state.saga_id,
                 execution_state.step_id,
                 error
               )
 
             {:timeout, error, _execution_time} ->
-              Kawa.SagaServer.step_failed(
+              Kawa.Core.SagaServer.step_failed(
                 execution_state.saga_id,
                 execution_state.step_id,
                 error
               )
 
             {:cancelled, error} ->
-              Kawa.SagaServer.step_failed(
+              Kawa.Core.SagaServer.step_failed(
                 execution_state.saga_id,
                 execution_state.step_id,
                 error

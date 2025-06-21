@@ -1,4 +1,4 @@
-defmodule Kawa.StepExecutionTracker do
+defmodule Kawa.Execution.StepExecutionTracker do
   @moduledoc """
   Tracks step execution lifecycle and provides monitoring capabilities.
 

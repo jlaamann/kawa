@@ -1,7 +1,7 @@
-defmodule Kawa.WorkflowRegistryTest do
+defmodule Kawa.Core.WorkflowRegistryTest do
   use ExUnit.Case, async: true
-  alias Kawa.WorkflowRegistry
-  alias Kawa.WorkflowRegistry.WorkflowDefinition
+  alias Kawa.Core.WorkflowRegistry
+  alias Kawa.Core.WorkflowRegistry.WorkflowDefinition
 
   setup do
     registry_name = :"test_registry_#{System.unique_integer()}"

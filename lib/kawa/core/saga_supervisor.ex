@@ -1,4 +1,4 @@
-defmodule Kawa.SagaSupervisor do
+defmodule Kawa.Core.SagaSupervisor do
   @moduledoc """
   DynamicSupervisor for managing multiple concurrent saga executions.
 
@@ -30,7 +30,7 @@ defmodule Kawa.SagaSupervisor do
         {:error, :already_running}
 
       {:error, :not_found} ->
-        spec = {Kawa.SagaServer, saga_id}
+        spec = {Kawa.Core.SagaServer, saga_id}
 
         case DynamicSupervisor.start_child(__MODULE__, spec) do
           {:ok, pid} ->
@@ -121,14 +121,14 @@ defmodule Kawa.SagaSupervisor do
     case get_saga_pid(saga_id) do
       {:ok, _pid} ->
         # Saga is already running, resume it
-        Kawa.SagaServer.resume(saga_id)
+        Kawa.Core.SagaServer.resume(saga_id)
 
       {:error, :not_found} ->
         # Start new saga process
         case start_saga(saga_id) do
           {:ok, _pid} ->
             # Start execution
-            Kawa.SagaServer.start_execution(saga_id)
+            Kawa.Core.SagaServer.start_execution(saga_id)
 
           {:error, _} = error ->
             error
@@ -147,7 +147,7 @@ defmodule Kawa.SagaSupervisor do
     Enum.each(client_sagas, fn saga_id ->
       case get_saga_pid(saga_id) do
         {:ok, _pid} ->
-          Kawa.SagaServer.pause(saga_id)
+          Kawa.Core.SagaServer.pause(saga_id)
 
         {:error, :not_found} ->
           Logger.warning("Saga #{saga_id} not running when trying to pause")
@@ -196,7 +196,7 @@ defmodule Kawa.SagaSupervisor do
     {healthy, unhealthy} =
       Enum.reduce(running_sagas, {[], []}, fn {saga_id, pid}, {healthy, unhealthy} ->
         if Process.alive?(pid) do
-          case Kawa.SagaServer.get_status(saga_id) do
+          case Kawa.Core.SagaServer.get_status(saga_id) do
             %{} -> {[saga_id | healthy], unhealthy}
             _ -> {healthy, [saga_id | unhealthy]}
           end
@@ -227,7 +227,7 @@ defmodule Kawa.SagaSupervisor do
     # Pause all sagas first
     Enum.each(running_sagas, fn {saga_id, _pid} ->
       try do
-        Kawa.SagaServer.pause(saga_id)
+        Kawa.Core.SagaServer.pause(saga_id)
       rescue
         error ->
           Logger.warning("Failed to pause saga #{saga_id} during shutdown: #{inspect(error)}")
