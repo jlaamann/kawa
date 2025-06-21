@@ -16,8 +16,16 @@ defmodule Kawa.Application do
       {Finch, name: Kawa.Finch},
       # Start the client registry for WebSocket connections
       Kawa.ClientRegistry,
-      # Start a worker by calling: Kawa.Worker.start_link(arg)
-      # {Kawa.Worker, arg},
+      # Start the workflow registry
+      Kawa.WorkflowRegistry,
+      # Start the saga registry for process tracking
+      {Registry, keys: :unique, name: Kawa.SagaRegistry},
+      # Start the saga supervisor for managing saga processes
+      Kawa.SagaSupervisor,
+      # Start the async step executor for timeout handling
+      Kawa.AsyncStepExecutor,
+      # Start the step execution tracker for monitoring
+      Kawa.StepExecutionTracker,
       # Start to serve requests, typically the last entry
       KawaWeb.Endpoint
     ]

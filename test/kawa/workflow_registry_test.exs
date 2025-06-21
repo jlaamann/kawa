@@ -30,19 +30,6 @@ defmodule Kawa.WorkflowRegistryTest do
     }
   end
 
-  defp valid_webhook_workflow_definition(name \\ "webhook-workflow") do
-    %{
-      "name" => name,
-      "steps" => [
-        %{
-          "id" => "webhook_step",
-          "type" => "webhook",
-          "action" => %{"url" => "https://webhook.example.com"}
-        }
-      ]
-    }
-  end
-
   defp valid_definition_params(workflow_name \\ "test-workflow", client_id \\ "test-client") do
     %{
       definition: valid_workflow_definition(workflow_name),
