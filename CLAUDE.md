@@ -58,12 +58,6 @@ As a saga orchestration engine, this project will implement:
 - **Event Store**: Persistence layer for saga state and events
 - **Compensation Logic**: Rollback mechanisms for failed transactions
 
-The distributed nature suggests it will include:
-- Inter-service communication mechanisms
-- State persistence and recovery
-- Error handling and retry logic
-- Monitoring and observability features
-
 ### Client-server communication
 Clients will communicate with the orchestrator over WebSockets.
 
@@ -75,57 +69,7 @@ Database schema is defined in a UML file located in docs/schema.uml.
 - **Saga Pattern**: Long-running business transactions split into steps
 - **Compensation**: Rollback actions when saga steps fail
 - **Orchestration**: Centralized coordination of distributed transactions
-- **Event Sourcing**: Likely used for maintaining saga state history
-
-## Saga format (YAML)
-
-```yaml
-name: "ecommerce-order"
-description: "Complete order processing with inventory and payment"
-timeout: "5m"
-
-steps:
-  - id: "reserve_inventory"
-    type: "http"
-    action:
-      method: "POST"
-      url: "http://inventory-service/reserve"
-      body: 
-        product_id: "{{ saga.input.product_id }}"
-        quantity: "{{ saga.input.quantity }}"
-    compensation:
-      method: "POST" 
-      url: "http://inventory-service/release"
-      body:
-        reservation_id: "{{ steps.reserve_inventory.response.reservation_id }}"
-    timeout: "30s"
-    
-  - id: "charge_payment"
-    type: "http"
-    depends_on: ["reserve_inventory"]
-    action:
-      method: "POST"
-      url: "http://payment-service/charge"
-      body:
-        amount: "{{ saga.input.amount }}"
-        payment_method: "{{ saga.input.payment_method }}"
-    compensation:
-      method: "POST"
-      url: "http://payment-service/refund" 
-      body:
-        charge_id: "{{ steps.charge_payment.response.charge_id }}"
-    timeout: "45s"
-
-  - id: "send_confirmation"
-    type: "elixir"
-    depends_on: ["charge_payment"]
-    action:
-      module: "OrderService"
-      function: "send_confirmation_email"
-      args: ["{{ saga.input.user_email }}", "{{ saga.input.order_id }}"]
-    # No compensation needed for email
-    timeout: "10s"
-```
+- **Event Sourcing**: Used for maintaining saga state history
 
 ## Application flows
 ### Defining and starting workflows
@@ -254,3 +198,55 @@ defmodule Kawa.ClientRegistry do
   end
 end
 ```
+
+## Server State Recovery
+
+Kawa ensures distributed saga transactions survive server failures and resume execution seamlessly through event sourcing and persistent state management.
+
+**Key Benefits:**
+- Zero transaction loss across server restarts
+- Automatic saga resumption without manual intervention  
+- Client reconnection with state synchronization
+- Complete compensation integrity for failed transactions
+
+### Recovery Architecture
+
+#### Event Sourcing
+Every saga operation generates immutable events stored in PostgreSQL:
+- `saga_started`, `step_completed`, `step_failed`, `compensation_started`, etc.
+- Sequential numbering ensures correct replay order
+- Complete state snapshots enable precise reconstruction
+
+#### Persistent State
+Critical data maintained across restarts:
+- **Sagas**: Current status and metadata
+- **Steps**: Individual execution state  
+- **Events**: Complete operation history
+- **Clients**: Connection and workflow information
+
+### Recovery Process
+
+#### Server Startup
+1. **Identify** active sagas (`running`, `paused`, `compensating`)
+2. **Reconstruct** state by replaying event history
+3. **Resume** execution from last known checkpoint
+
+#### Client Reconnection
+When clients reconnect:
+- Kawa detects previous connections automatically
+- Retrieves associated saga states
+- Continues execution from interruption point
+- Retransmits any pending step requests
+
+#### Compensation Recovery
+For failed transactions requiring rollback:
+- Identifies last successful step
+- Executes compensation in reverse order
+- Tracks rollback progress via events
+
+### Guarantees
+
+✅ **Exactly-once execution** - Steps never duplicate despite retries  
+✅ **Progress preservation** - No loss of completed work  
+✅ **Compensation integrity** - Failed transactions properly rolled back  
+✅ **Event ordering** - Sequential replay maintains consistency  
