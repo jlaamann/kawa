@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# Pre-commit hook to run mix format on staged Elixir files
+#
+
+# Check if this is an initial commit
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+    against=HEAD
+else
+    # Initial commit: diff against an empty tree object
+    against=$(git hash-object -t tree /dev/null)
+fi
+
+# Get list of staged .ex and .exs files
+staged_files=$(git diff --cached --name-only --diff-filter=ACM $against | grep -E '\.(ex|exs)$')
+
+if [ -z "$staged_files" ]; then
+    # No Elixir files staged, exit successfully
+    exit 0
+fi
+
+echo "Running mix format on staged Elixir files..."
+
+# Run mix format on staged files
+echo "$staged_files" | xargs mix format
+
+# Check if mix format made any changes
+if ! git diff --quiet; then
+    echo "mix format made changes to your files."
+    echo "The formatted files have been updated but not staged."
+    echo "Please review the changes and stage them before committing:"
+    echo ""
+    echo "  git add ."
+    echo "  git commit"
+    echo ""
+    exit 1
+fi
+
+echo "All staged Elixir files are properly formatted."
+exit 0
