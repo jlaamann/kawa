@@ -31,6 +31,18 @@ This project uses Phoenix with LiveView and Ecto, with PostgreSQL running in Doc
 2. `mix setup` - Install deps and setup database
 3. `mix phx.server` - Start server
 
+### Git Hooks (Optional)
+To enable automatic code formatting on commit:
+```bash
+cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+This hook will:
+- Run `mix format` on staged Elixir files before commit
+- Prevent commits if formatting changes are needed
+- Ensure consistent code formatting across the team
+
 ### Continuous Integration
 - GitHub Actions automatically run tests on push/PR to main branch
 - Includes: formatting checks, compilation, tests, dependency checks
