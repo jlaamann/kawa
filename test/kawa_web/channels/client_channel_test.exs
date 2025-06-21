@@ -78,15 +78,36 @@ defmodule KawaWeb.ClientChannelTest do
       assert %DateTime{} = timestamp
     end
 
-    test "handles workflow registration", %{socket: socket} do
+    test "handles valid workflow registration", %{socket: socket} do
       workflow_def = %{
         "name" => "test-workflow",
-        "steps" => []
+        "steps" => [
+          %{
+            "id" => "step1",
+            "type" => "http",
+            "action" => %{"method" => "GET", "url" => "http://example.com"}
+          }
+        ]
       }
 
       ref = push(socket, "register_workflow", %{"workflow" => workflow_def})
 
-      assert_reply ref, :ok, %{status: "workflow_registered"}
+      assert_reply ref, :ok, %{status: "workflow_registered", workflow_id: "test-workflow"}
+    end
+
+    test "rejects invalid workflow registration", %{socket: socket} do
+      invalid_workflow = %{
+        # Invalid characters
+        "name" => "invalid workflow!",
+        # Empty steps
+        "steps" => []
+      }
+
+      ref = push(socket, "register_workflow", %{"workflow" => invalid_workflow})
+
+      assert_reply ref, :error, %{reason: "validation_failed", errors: errors}
+      assert is_list(errors)
+      assert length(errors) > 0
     end
 
     test "handles step result", %{socket: socket} do
