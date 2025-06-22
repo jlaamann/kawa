@@ -39,7 +39,9 @@
 
           <:col :let={workflow} label="Active">
             <div class="text-sm">
-              {if Map.get(workflow, :has_active_version, workflow.is_active), do: "Yes", else: "No"}
+              {if Map.get(workflow, :has_active_version, workflow.is_active),
+                do: "Yes",
+                else: "No"}
             </div>
           </:col>
 
@@ -103,7 +105,7 @@
             @selected_workflow.client_id}
         </p>
         
-        <!-- Version Selection -->
+<!-- Version Selection -->
         <%= if length(@workflow_versions) > 1 do %>
           <div class="mt-4">
             <label class="text-sm font-medium text-gray-700">Version History</label>
@@ -123,7 +125,11 @@
               >
                 <span>v{version.version}</span>
                 <%= if version.is_active do %>
-                  <span class="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-green-400" title="Active version"></span>
+                  <span
+                    class="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-green-400"
+                    title="Active version"
+                  >
+                  </span>
                 <% end %>
               </button>
             </div>
