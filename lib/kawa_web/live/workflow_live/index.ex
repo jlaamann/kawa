@@ -53,8 +53,15 @@ defmodule KawaWeb.WorkflowLive.Index do
         {:noreply, put_flash(socket, :error, "Workflow not found")}
 
       workflow ->
-        # Load all versions of this workflow
-        versions = Workflows.list_workflow_versions(workflow.name)
+        # Load all versions of this workflow - use all_versions if available, otherwise fetch from DB
+        versions = Map.get(workflow, :all_versions, [])
+
+        versions =
+          if Enum.empty?(versions) do
+            Workflows.list_workflow_versions(workflow.name)
+          else
+            versions
+          end
 
         # Ensure definition is a map, handle string JSON or nil cases
         definition =
@@ -124,25 +131,21 @@ defmodule KawaWeb.WorkflowLive.Index do
               %{"error" => "Invalid definition format"}
           end
 
-        # Create a unified workflow object similar to the original show_workflow logic
+        # Create a unified workflow object - handle both database objects and consolidated objects
         updated_workflow = %{
-          id: "db_#{version_workflow.id}",
+          id: version_workflow.id,
           name: version_workflow.name,
           version: version_workflow.version,
           definition: definition,
           client_id: version_workflow.client_id,
-          client_name: if(version_workflow.client, do: version_workflow.client.name, else: nil),
+          client_name: get_client_name(version_workflow),
           is_active: version_workflow.is_active,
-          in_memory: false,
-          usage_count: 0,
-          last_used_at: nil,
-          registered_at: version_workflow.registered_at || version_workflow.inserted_at,
-          source: "database",
-          metadata: %{
-            "database_id" => version_workflow.id,
-            "module_name" => version_workflow.module_name,
-            "definition_checksum" => version_workflow.definition_checksum
-          }
+          in_memory: Map.get(version_workflow, :in_memory, false),
+          usage_count: Map.get(version_workflow, :usage_count, 0),
+          last_used_at: Map.get(version_workflow, :last_used_at, nil),
+          registered_at: get_registered_at(version_workflow),
+          source: Map.get(version_workflow, :source, "database"),
+          metadata: get_metadata(version_workflow)
         }
 
         socket =
@@ -154,6 +157,39 @@ defmodule KawaWeb.WorkflowLive.Index do
     end
   end
 
+  # Helper functions to handle both database objects and consolidated objects
+  defp get_client_name(workflow) do
+    cond do
+      Map.has_key?(workflow, :client_name) -> workflow.client_name
+      Map.has_key?(workflow, :client) and workflow.client -> workflow.client.name
+      true -> nil
+    end
+  end
+
+  defp get_registered_at(workflow) do
+    cond do
+      Map.has_key?(workflow, :registered_at) and workflow.registered_at -> workflow.registered_at
+      Map.has_key?(workflow, :inserted_at) -> workflow.inserted_at
+      true -> nil
+    end
+  end
+
+  defp get_metadata(workflow) do
+    if Map.has_key?(workflow, :metadata) do
+      workflow.metadata
+    else
+      # Create metadata from database object fields
+      %{
+        "database_id" => extract_db_id(workflow.id),
+        "module_name" => Map.get(workflow, :module_name),
+        "definition_checksum" => Map.get(workflow, :definition_checksum)
+      }
+    end
+  end
+
+  defp extract_db_id("db_" <> id), do: id
+  defp extract_db_id(id), do: id
+
   defp create_unified_workflow_list(registry_workflows, db_workflows) do
     # Create a map of registry workflows by name+version for quick lookup
     registry_map =
@@ -164,32 +200,53 @@ defmodule KawaWeb.WorkflowLive.Index do
       end)
 
     # Convert all database workflows to unified format, checking if they're in memory
-    db_workflows
-    |> Enum.map(fn db_workflow ->
-      key = {db_workflow.name, to_string(db_workflow.version)}
-      registry_workflow = Map.get(registry_map, key)
+    all_workflows =
+      db_workflows
+      |> Enum.map(fn db_workflow ->
+        key = {db_workflow.name, to_string(db_workflow.version)}
+        registry_workflow = Map.get(registry_map, key)
 
-      %{
-        id: "db_#{db_workflow.id}",
-        name: db_workflow.name,
-        version: db_workflow.version,
-        definition: db_workflow.definition,
-        client_id: db_workflow.client_id,
-        client_name: if(db_workflow.client, do: db_workflow.client.name, else: nil),
-        is_active: db_workflow.is_active,
-        in_memory: not is_nil(registry_workflow),
-        usage_count: if(registry_workflow, do: registry_workflow.usage_count, else: 0),
-        last_used_at: if(registry_workflow, do: registry_workflow.last_used_at, else: nil),
-        registered_at: db_workflow.registered_at || db_workflow.inserted_at,
-        source: "database",
-        metadata: %{
-          "database_id" => db_workflow.id,
-          "module_name" => db_workflow.module_name,
-          "definition_checksum" => db_workflow.definition_checksum
+        %{
+          id: "db_#{db_workflow.id}",
+          name: db_workflow.name,
+          version: db_workflow.version,
+          definition: db_workflow.definition,
+          client_id: db_workflow.client_id,
+          client_name: if(db_workflow.client, do: db_workflow.client.name, else: nil),
+          is_active: db_workflow.is_active,
+          in_memory: not is_nil(registry_workflow),
+          usage_count: if(registry_workflow, do: registry_workflow.usage_count, else: 0),
+          last_used_at: if(registry_workflow, do: registry_workflow.last_used_at, else: nil),
+          registered_at: db_workflow.registered_at || db_workflow.inserted_at,
+          source: "database",
+          metadata: %{
+            "database_id" => db_workflow.id,
+            "module_name" => db_workflow.module_name,
+            "definition_checksum" => db_workflow.definition_checksum
+          }
         }
-      }
+      end)
+
+    # Group workflows by name and keep only the latest version for display
+    all_workflows
+    |> Enum.group_by(& &1.name)
+    |> Enum.map(fn {_name, versions} ->
+      # Sort by version descending and take the latest
+      latest_version =
+        versions
+        |> Enum.sort_by(& &1.version, :desc)
+        |> List.first()
+
+      # Add consolidated metadata
+      version_count = length(versions)
+      has_active_version = Enum.any?(versions, & &1.is_active)
+
+      latest_version
+      |> Map.put(:version_count, version_count)
+      |> Map.put(:has_active_version, has_active_version)
+      |> Map.put(:all_versions, versions)
     end)
-    |> Enum.sort_by(&{&1.name, &1.version})
+    |> Enum.sort_by(& &1.name)
   end
 
   defp workflow_definition_display(assigns) do

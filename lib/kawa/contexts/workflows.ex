@@ -48,4 +48,22 @@ defmodule Kawa.Contexts.Workflows do
     |> order_by([w], desc: w.version)
     |> Repo.all()
   end
+
+  @doc """
+  Gets a single workflow definition by ID.
+
+  ## Examples
+
+      iex> get_workflow_definition("123")
+      %WorkflowDefinition{}
+
+      iex> get_workflow_definition("456")
+      nil
+
+  """
+  def get_workflow_definition(id) do
+    WorkflowDefinition
+    |> preload(:client)
+    |> Repo.get(id)
+  end
 end

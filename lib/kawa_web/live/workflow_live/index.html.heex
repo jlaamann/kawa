@@ -15,7 +15,14 @@
           </:col>
 
           <:col :let={workflow} label="Version">
-            <div class="text-sm text-gray-900">{workflow.version}</div>
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-900">{workflow.version}</span>
+              <%= if Map.get(workflow, :version_count, 1) > 1 do %>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                  +{workflow.version_count - 1} more
+                </span>
+              <% end %>
+            </div>
           </:col>
 
           <:col :let={workflow} label="Client">
@@ -32,7 +39,7 @@
 
           <:col :let={workflow} label="Active">
             <div class="text-sm">
-              {if workflow.is_active, do: "Yes", else: "No"}
+              {if Map.get(workflow, :has_active_version, workflow.is_active), do: "Yes", else: "No"}
             </div>
           </:col>
 
