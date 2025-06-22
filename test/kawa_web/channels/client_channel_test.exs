@@ -111,15 +111,33 @@ defmodule KawaWeb.ClientChannelTest do
       assert length(errors) > 0
     end
 
-    test "handles step result", %{socket: socket} do
+    test "handles step result", %{socket: socket, client: client} do
+      # Create a workflow definition and saga for this test
+      {:ok, workflow_def} = create_test_workflow_definition(client)
+      {:ok, saga} = create_test_saga(client, workflow_def)
+
+      # Start the SagaServer for this saga
+      {:ok, _saga_server_pid} = Kawa.Core.SagaSupervisor.start_saga(saga.id)
+
       ref =
         push(socket, "step_result", %{
-          "saga_id" => "test-saga-123",
+          "saga_id" => saga.id,
           "step_id" => "test-step",
           "result" => %{"success" => true}
         })
 
       assert_reply ref, :ok, %{status: "result_received"}
+    end
+
+    test "handles step result for non-existent saga", %{socket: socket} do
+      ref =
+        push(socket, "step_result", %{
+          "saga_id" => "non-existent-saga-123",
+          "step_id" => "test-step",
+          "result" => %{"success" => true}
+        })
+
+      assert_reply ref, :error, %{reason: "saga_not_found"}
     end
   end
 
@@ -150,6 +168,43 @@ defmodule KawaWeb.ClientChannelTest do
     |> Client.create_changeset(%{
       "name" => "test-client-#{System.unique_integer([:positive])}",
       "environment" => "dev"
+    })
+    |> Repo.insert()
+  end
+
+  defp create_test_workflow_definition(client) do
+    workflow_definition = %{
+      "steps" => [
+        %{
+          "id" => "test-step",
+          "depends_on" => [],
+          "timeout" => 5000,
+          "input" => %{"action" => "test_action"}
+        }
+      ]
+    }
+
+    %Kawa.Schemas.WorkflowDefinition{}
+    |> Kawa.Schemas.WorkflowDefinition.changeset(%{
+      name: "test-workflow-#{System.unique_integer([:positive])}",
+      version: "1.0.0",
+      module_name: "TestWorkflow",
+      definition: workflow_definition,
+      definition_checksum: "test-checksum-#{System.unique_integer([:positive])}",
+      client_id: client.id
+    })
+    |> Repo.insert()
+  end
+
+  defp create_test_saga(client, workflow_def) do
+    %Kawa.Schemas.Saga{}
+    |> Kawa.Schemas.Saga.create_changeset(%{
+      correlation_id: "test-saga-#{System.unique_integer([:positive])}",
+      workflow_definition_id: workflow_def.id,
+      client_id: client.id,
+      input: %{"test_data" => "value"},
+      context: %{},
+      status: "running"
     })
     |> Repo.insert()
   end

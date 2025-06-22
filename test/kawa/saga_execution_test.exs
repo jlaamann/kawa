@@ -19,6 +19,13 @@ defmodule Kawa.SagaExecutionTest do
   @moduletag :integration
 
   setup do
+    # Configure test compensation client for integration tests
+    Application.put_env(:kawa, :compensation_client, Kawa.Execution.CompensationClient.Test)
+
+    on_exit(fn ->
+      Application.delete_env(:kawa, :compensation_client)
+    end)
+
     # Create test client
     client_attrs = %{
       name: "test-client",
