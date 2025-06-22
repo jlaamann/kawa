@@ -4,8 +4,8 @@
       <h1 class="text-base font-bold leading-6 text-gray-900">Workflows</h1>
     </div>
   </div>
-
-  <!-- Workflows Table -->
+  
+<!-- Workflows Table -->
   <div class="w-full">
     <div class="w-full overflow-x-auto">
       <div class="w-full py-2 align-middle">
@@ -39,8 +39,8 @@
           <:col :let={workflow} label="Steps">
             <div class="text-sm text-gray-900">
               {if is_map(workflow.definition) and is_list(Map.get(workflow.definition, "steps")),
-              do: length(Map.get(workflow.definition, "steps", [])),
-              else: 0}
+                do: length(Map.get(workflow.definition, "steps", [])),
+                else: 0}
             </div>
           </:col>
 
@@ -53,8 +53,8 @@
           <:col :let={workflow} label="Last Used">
             <div class="text-sm text-gray-500">
               {if workflow.last_used_at,
-              do: Calendar.strftime(workflow.last_used_at, "%Y-%m-%d %H:%M"),
-              else: "Never"}
+                do: Calendar.strftime(workflow.last_used_at, "%Y-%m-%d %H:%M"),
+                else: "Never"}
             </div>
           </:col>
 
@@ -65,8 +65,12 @@
           </:col>
 
           <:action :let={workflow}>
-            <.button type="button" phx-click="show_workflow" phx-value-id={workflow.id}
-              class="text-xs bg-blue-600 hover:bg-blue-500">
+            <.button
+              type="button"
+              phx-click="show_workflow"
+              phx-value-id={workflow.id}
+              class="text-xs bg-blue-600 hover:bg-blue-500"
+            >
               View
             </.button>
           </:action>
@@ -74,10 +78,14 @@
       </div>
     </div>
   </div>
-
-  <!-- Workflow Detail Modal -->
-  <.modal :if={@show_workflow_modal && @selected_workflow} id="workflow-detail-modal" show={@show_workflow_modal}
-    on_cancel={JS.push("close_workflow_modal")}>
+  
+<!-- Workflow Detail Modal -->
+  <.modal
+    :if={@show_workflow_modal && @selected_workflow}
+    id="workflow-detail-modal"
+    show={@show_workflow_modal}
+    on_cancel={JS.push("close_workflow_modal")}
+  >
     <div class="space-y-6">
       <div class="border-b border-gray-200 pb-4">
         <h3 class="text-lg font-medium leading-6 text-gray-900">
@@ -85,7 +93,7 @@
         </h3>
         <p class="mt-1 text-sm text-gray-500">
           Version {@selected_workflow.version} • Client: {@selected_workflow.client_name ||
-          @selected_workflow.client_id}
+            @selected_workflow.client_id}
         </p>
       </div>
 
@@ -124,8 +132,8 @@
             <dt class="text-sm font-medium text-gray-500">Last Used</dt>
             <dd class="mt-1 text-sm text-gray-900">
               {if @selected_workflow.last_used_at,
-              do: Calendar.strftime(@selected_workflow.last_used_at, "%Y-%m-%d %H:%M"),
-              else: "Never"}
+                do: Calendar.strftime(@selected_workflow.last_used_at, "%Y-%m-%d %H:%M"),
+                else: "Never"}
             </dd>
           </div>
         </div>
@@ -134,7 +142,7 @@
       <div>
         <dt class="text-sm font-medium text-gray-500 mb-3">Workflow Definition</dt>
         <dd>
-          <%= workflow_definition_display(%{definition: @selected_workflow.definition}) %>
+          {workflow_definition_display(%{definition: @selected_workflow.definition})}
         </dd>
       </div>
 
@@ -142,11 +150,10 @@
         <div>
           <dt class="text-sm font-medium text-gray-500 mb-3">Metadata</dt>
           <dd class="bg-gray-50 rounded-lg p-3">
-            <pre
-              class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_workflow.metadata, pretty: true) %></pre>
+            <pre class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_workflow.metadata, pretty: true) %></pre>
           </dd>
         </div>
-        <% end %>
+      <% end %>
     </div>
   </.modal>
 </div>
