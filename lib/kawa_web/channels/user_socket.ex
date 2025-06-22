@@ -3,6 +3,7 @@ defmodule KawaWeb.UserSocket do
 
   # Channels for client connections
   channel "client:*", KawaWeb.ClientChannel
+  channel "workflow_execution:*", KawaWeb.WorkflowExecutionChannel
 
   @impl true
   def connect(_params, socket, _connect_info) do
