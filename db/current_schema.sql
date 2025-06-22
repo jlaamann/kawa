@@ -265,7 +265,7 @@ CREATE TABLE public.workflow_definitions (
     client_id uuid NOT NULL,
     module_name character varying(500) NOT NULL,
     definition jsonb NOT NULL,
-    definition_checksum character varying(32) NOT NULL,
+    definition_checksum character varying(64) NOT NULL,
     default_timeout_ms integer DEFAULT 300000 NOT NULL,
     default_retry_policy jsonb DEFAULT '{"backoff_ms": 1000, "max_retries": 3}'::jsonb NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
@@ -293,35 +293,6 @@ COMMENT ON TABLE public.workflow_definitions IS 'Workflow templates registered b
 --
 
 COMMENT ON COLUMN public.workflow_definitions.definition_checksum IS 'MD5 hash for detecting workflow changes';
-
-
---
--- Name: workflow_steps; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.workflow_steps (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    workflow_definition_id uuid NOT NULL,
-    step_id character varying(100) NOT NULL,
-    step_name character varying(255) NOT NULL,
-    step_definition jsonb NOT NULL,
-    depends_on character varying(255)[] DEFAULT ARRAY[]::character varying[] NOT NULL,
-    execution_order integer DEFAULT 0 NOT NULL,
-    inserted_at timestamp(0) without time zone NOT NULL,
-    updated_at timestamp(0) without time zone NOT NULL,
-    CONSTRAINT workflow_steps_execution_order_check CHECK ((execution_order >= 0)),
-    CONSTRAINT workflow_steps_step_id_length_check CHECK ((length((step_id)::text) > 0)),
-    CONSTRAINT workflow_steps_step_name_length_check CHECK ((length((step_name)::text) > 0))
-);
-
-
-ALTER TABLE public.workflow_steps OWNER TO postgres;
-
---
--- Name: TABLE workflow_steps; Type: COMMENT; Schema: public; Owner: postgres
---
-
-COMMENT ON TABLE public.workflow_steps IS 'Step definitions within workflow templates';
 
 
 --
@@ -370,14 +341,6 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.workflow_definitions
     ADD CONSTRAINT workflow_definitions_pkey PRIMARY KEY (id);
-
-
---
--- Name: workflow_steps workflow_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.workflow_steps
-    ADD CONSTRAINT workflow_steps_pkey PRIMARY KEY (id);
 
 
 --
@@ -479,13 +442,6 @@ CREATE INDEX idx_workflow_definitions_name ON public.workflow_definitions USING 
 
 
 --
--- Name: idx_workflow_steps_definition; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_workflow_steps_definition ON public.workflow_steps USING btree (workflow_definition_id);
-
-
---
 -- Name: uk_clients_api_key_hash; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -528,13 +484,6 @@ CREATE UNIQUE INDEX uk_workflow_definitions_client_name_version ON public.workfl
 
 
 --
--- Name: uk_workflow_steps_definition_step; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE UNIQUE INDEX uk_workflow_steps_definition_step ON public.workflow_steps USING btree (workflow_definition_id, step_id);
-
-
---
 -- Name: clients trigger_clients_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -567,13 +516,6 @@ CREATE TRIGGER trigger_set_saga_event_sequence BEFORE INSERT ON public.saga_even
 --
 
 CREATE TRIGGER trigger_workflow_definitions_updated_at BEFORE UPDATE ON public.workflow_definitions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
--- Name: workflow_steps trigger_workflow_steps_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER trigger_workflow_steps_updated_at BEFORE UPDATE ON public.workflow_steps FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -614,14 +556,6 @@ ALTER TABLE ONLY public.sagas
 
 ALTER TABLE ONLY public.workflow_definitions
     ADD CONSTRAINT workflow_definitions_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id) ON DELETE CASCADE;
-
-
---
--- Name: workflow_steps workflow_steps_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.workflow_steps
-    ADD CONSTRAINT workflow_steps_workflow_definition_id_fkey FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE CASCADE;
 
 
 --
