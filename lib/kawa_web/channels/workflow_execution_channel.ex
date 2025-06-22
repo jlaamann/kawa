@@ -61,7 +61,23 @@ defmodule KawaWeb.WorkflowExecutionChannel do
 
           {:error, reason} ->
             Logger.error("Failed to execute workflow: #{inspect(reason)}")
-            {:reply, {:error, %{reason: reason}}, socket}
+            # Convert tuple reasons to JSON-serializable format
+            serializable_reason =
+              case reason do
+                {:execution_start_failed, detail} ->
+                  %{type: "execution_start_failed", detail: to_string(detail)}
+
+                {:step_creation_failed, detail} ->
+                  %{type: "step_creation_failed", detail: to_string(detail)}
+
+                {:saga_creation_failed, detail} ->
+                  %{type: "saga_creation_failed", detail: to_string(detail)}
+
+                other ->
+                  to_string(other)
+              end
+
+            {:reply, {:error, %{reason: serializable_reason}}, socket}
         end
 
       {:error, errors} ->
@@ -193,30 +209,38 @@ defmodule KawaWeb.WorkflowExecutionChannel do
   end
 
   defp execute_workflow(validated_payload, client) do
-    Repo.transaction(fn ->
-      # Create saga
-      case create_saga(validated_payload, client) do
-        {:ok, saga} ->
-          # Create saga steps
-          case create_saga_steps(saga, validated_payload.workflow_definition) do
-            {:ok, _steps} ->
-              # Start saga execution
-              case start_saga_execution(saga.id) do
-                {:ok, _} ->
-                  saga
+    # Create saga and steps in transaction first
+    case Repo.transaction(fn ->
+           # Create saga
+           case create_saga(validated_payload, client) do
+             {:ok, saga} ->
+               # Create saga steps
+               case create_saga_steps(saga, validated_payload.workflow_definition) do
+                 {:ok, _steps} ->
+                   saga
 
-                {:error, reason} ->
-                  Repo.rollback({:execution_start_failed, reason})
-              end
+                 {:error, reason} ->
+                   Repo.rollback({:step_creation_failed, reason})
+               end
 
-            {:error, reason} ->
-              Repo.rollback({:step_creation_failed, reason})
-          end
+             {:error, reason} ->
+               Repo.rollback({:saga_creation_failed, reason})
+           end
+         end) do
+      {:ok, saga} ->
+        # Start saga execution AFTER transaction commits
+        case start_saga_execution(saga.id) do
+          {:ok, _} ->
+            {:ok, saga}
 
-        {:error, reason} ->
-          Repo.rollback({:saga_creation_failed, reason})
-      end
-    end)
+          {:error, reason} ->
+            Logger.error("Failed to start saga execution for saga #{saga.id}: #{inspect(reason)}")
+            {:error, {:execution_start_failed, reason}}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp create_saga(validated_payload, client) do
