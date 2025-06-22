@@ -503,7 +503,7 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     end
   end
 
-  # TODO: no automatic version incremental implemented at the moment, so client provided version will always be returned
+  # DEV-TODO: no automatic version incremental implemented at the moment, so client provided version will always be returned
   # this means that concurrency is not handled properly at the moment.
   # Will be fixed in issue #49
   # describe "concurrent operations" do

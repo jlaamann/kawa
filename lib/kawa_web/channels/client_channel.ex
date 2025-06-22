@@ -98,6 +98,13 @@ defmodule KawaWeb.ClientChannel do
                 {:reply, {:error, %{reason: "registry_error", details: registry_error}}, socket}
             end
 
+          {:error, :version_already_exists} ->
+            Logger.error(
+              "Failed to store workflow definition in database: workflow with the provided version already exists"
+            )
+
+            {:reply, {:error, :version_already_exists}, socket}
+
           {:error, changeset} ->
             Logger.error(
               "Failed to store workflow definition in database: #{inspect(changeset.errors)}"
@@ -351,18 +358,8 @@ defmodule KawaWeb.ClientChannel do
         })
         |> Repo.insert()
 
-      existing_workflow ->
-        # Update existing workflow definition
-        existing_workflow
-        |> WorkflowDefinition.changeset(%{
-          definition: validated_workflow,
-          definition_checksum: checksum,
-          default_timeout_ms: timeout_ms,
-          default_retry_policy: retry_policy,
-          is_active: true,
-          validation_errors: []
-        })
-        |> Repo.update()
+      _existing_workflow ->
+        {:error, :version_already_exists}
     end
   end
 end

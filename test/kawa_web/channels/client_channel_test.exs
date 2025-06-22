@@ -79,7 +79,10 @@ defmodule KawaWeb.ClientChannelTest do
       assert %DateTime{} = timestamp
     end
 
-    test "handles valid workflow registration", %{socket: socket} do
+    # DEV-TODO: split into two tests, right now there's some conflict & flakiness -> tests are not properly isolated if there are DB side-effects
+    test "handles valid workflow registration, duplicate versions are rejected afterwards", %{
+      socket: socket
+    } do
       workflow_def = %{
         "name" => "test-workflow",
         "steps" => [
@@ -94,6 +97,24 @@ defmodule KawaWeb.ClientChannelTest do
       ref = push(socket, "register_workflow", workflow_def)
 
       assert_reply ref, :ok, %{status: "workflow_registered", workflow_id: "test-workflow"}
+
+      invalid_workflow = %{
+        "name" => "test-workflow",
+        "version" => "1.0.0",
+        "steps" => [
+          %{
+            "id" => "step1",
+            "type" => "http",
+            # changed URL
+            # different URL
+            "action" => %{"method" => "GET", "url" => "http://example.com/validate"}
+          }
+        ]
+      }
+
+      ref2 = push(socket, "register_workflow", invalid_workflow)
+
+      assert_reply ref2, :error, :version_already_exists
     end
 
     test "rejects invalid workflow registration", %{socket: socket} do
