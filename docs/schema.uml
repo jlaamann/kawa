@@ -85,21 +85,8 @@ erDiagram
         datetime inserted_at
     }
 
-    workflow_steps {
-        binary_id id PK
-        binary_id workflow_definition_id FK
-        string step_id
-        string step_name
-        jsonb step_definition "Action, compensation, timeout, etc"
-        array depends_on "Step dependencies"
-        integer execution_order "Topologically sorted order"
-        datetime inserted_at
-        datetime updated_at
-    }
-
     clients ||--o{ workflow_definitions : "registers"
     clients ||--o{ sagas : "executes"
     workflow_definitions ||--o{ sagas : "instantiates"
-    workflow_definitions ||--o{ workflow_steps : "defines"
     sagas ||--o{ saga_events : "logs"
     sagas ||--o{ saga_steps : "contains"
