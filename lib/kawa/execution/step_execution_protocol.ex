@@ -256,7 +256,24 @@ defmodule Kawa.Execution.StepExecutionProtocol do
   Checks if a message is a response type.
   """
   def is_response_message?(message) when is_map(message) do
-    Map.get(message, "type") in ["step_completed", "step_failed", "step_status_response"]
+    Map.get(message, "type") in [
+      "step_completed",
+      "step_failed",
+      "step_status_response",
+      "compensation_completed",
+      "compensation_failed"
+    ]
+  end
+
+  @doc """
+  Checks if a message is a notification type (no response expected).
+  """
+  def is_notification_message?(message) when is_map(message) do
+    Map.get(message, "type") in [
+      "step_result_ack",
+      "saga_status_update",
+      "heartbeat"
+    ]
   end
 
   @doc """
@@ -265,10 +282,128 @@ defmodule Kawa.Execution.StepExecutionProtocol do
   def get_expected_response_type(request_type) do
     case request_type do
       "execute_step" -> ["step_completed", "step_failed"]
-      "compensate_step" -> ["step_completed", "step_failed"]
+      "compensate_step" -> ["compensation_completed", "compensation_failed"]
       "step_status_query" -> ["step_status_response"]
       _ -> []
     end
+  end
+
+  @doc """
+  Creates a step result acknowledgment message.
+
+  Sent from Kawa server to client to acknowledge receipt and processing of step results.
+
+  ## Message Structure
+
+      %{
+        type: "step_result_ack",
+        saga_id: "uuid",
+        step_id: "step_name",
+        status: "completed" | "failed",
+        data: %{...},
+        timestamp: "2024-01-01T12:00:00Z"
+      }
+  """
+  def create_step_result_acknowledgment(saga_id, step_id, status, data) do
+    %{
+      type: "step_result_ack",
+      saga_id: saga_id,
+      step_id: step_id,
+      status: status,
+      data: data,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
+  @doc """
+  Creates a saga status update message.
+
+  Sent from Kawa server to client to notify about saga state changes.
+
+  ## Message Structure
+
+      %{
+        type: "saga_status_update",
+        saga_id: "uuid",
+        status: "running" | "completed" | "failed" | "compensated" | "paused",
+        details: %{...},
+        timestamp: "2024-01-01T12:00:00Z"
+      }
+  """
+  def create_saga_status_update(saga_id, status, details) do
+    %{
+      type: "saga_status_update",
+      saga_id: saga_id,
+      status: status,
+      details: details,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
+  @doc """
+  Creates a compensation completion response message.
+
+  Sent from client to Kawa server when compensation completes.
+
+  ## Message Structure
+
+      %{
+        type: "compensation_completed",
+        saga_id: "uuid",
+        step_id: "step_name",
+        correlation_id: "uuid",
+        result: %{...},
+        execution_time_ms: 800,
+        metadata: %{...}
+      }
+  """
+  def create_compensation_completion_response(
+        saga_id,
+        step_id,
+        correlation_id,
+        result,
+        opts \\ []
+      ) do
+    %{
+      type: "compensation_completed",
+      saga_id: saga_id,
+      step_id: step_id,
+      correlation_id: correlation_id,
+      result: result || %{},
+      execution_time_ms: Keyword.get(opts, :execution_time_ms),
+      metadata: Keyword.get(opts, :metadata, %{}),
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
+  @doc """
+  Creates a compensation failure response message.
+
+  Sent from client to Kawa server when compensation fails.
+
+  ## Message Structure
+
+      %{
+        type: "compensation_failed",
+        saga_id: "uuid",
+        step_id: "step_name",
+        correlation_id: "uuid",
+        error: %{...},
+        execution_time_ms: 200,
+        metadata: %{...}
+      }
+  """
+  def create_compensation_failure_response(saga_id, step_id, correlation_id, error, opts \\ []) do
+    %{
+      type: "compensation_failed",
+      saga_id: saga_id,
+      step_id: step_id,
+      correlation_id: correlation_id,
+      error: normalize_error(error),
+      execution_time_ms: Keyword.get(opts, :execution_time_ms),
+      metadata: Keyword.get(opts, :metadata, %{}),
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
   end
 
   @doc """
@@ -313,8 +448,12 @@ defmodule Kawa.Execution.StepExecutionProtocol do
       "step_completed" -> ["type", "saga_id", "step_id", "result"]
       "step_failed" -> ["type", "saga_id", "step_id", "error"]
       "compensate_step" -> ["type", "saga_id", "step_id", "original_result"]
+      "compensation_completed" -> ["type", "saga_id", "step_id", "result"]
+      "compensation_failed" -> ["type", "saga_id", "step_id", "error"]
       "step_status_query" -> ["type", "saga_id", "step_id"]
       "step_status_response" -> ["type", "saga_id", "step_id", "status"]
+      "step_result_ack" -> ["type", "saga_id", "step_id", "status"]
+      "saga_status_update" -> ["type", "saga_id", "status"]
       "heartbeat" -> ["type", "client_id"]
       "error" -> ["type", "error"]
       _ -> ["type"]

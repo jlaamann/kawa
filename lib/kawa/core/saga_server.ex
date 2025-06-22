@@ -225,6 +225,15 @@ defmodule Kawa.Core.SagaServer do
                   # Track step completion
                   StepExecutionTracker.track_step_completed(state.saga_id, step_id)
 
+                  # Send step result acknowledgment to client
+                  send_step_result_acknowledgment(
+                    state.client_pid,
+                    state.saga_id,
+                    step_id,
+                    "completed",
+                    result
+                  )
+
                   # Check if saga is complete or execute next steps
                   state = check_saga_completion(state)
                   state = execute_ready_steps(state)
@@ -290,6 +299,15 @@ defmodule Kawa.Core.SagaServer do
                   # Track step failure
                   StepExecutionTracker.track_step_failed(state.saga_id, step_id, error)
 
+                  # Send step result acknowledgment to client
+                  send_step_result_acknowledgment(
+                    state.client_pid,
+                    state.saga_id,
+                    step_id,
+                    "failed",
+                    error
+                  )
+
                   # Start compensation process
                   state = start_compensation(state)
 
@@ -331,6 +349,15 @@ defmodule Kawa.Core.SagaServer do
 
                   # Track step failure with normalized error
                   StepExecutionTracker.track_step_failed(state.saga_id, step_id, normalized_error)
+
+                  # Send step result acknowledgment to client
+                  send_step_result_acknowledgment(
+                    state.client_pid,
+                    state.saga_id,
+                    step_id,
+                    "failed",
+                    normalized_error
+                  )
 
                   state = start_compensation(state)
                   {:noreply, state}
@@ -376,6 +403,13 @@ defmodule Kawa.Core.SagaServer do
 
         record_event(state, "saga_resumed", %{})
         Logger.info("Saga #{state.saga_id} resumed")
+
+        # Broadcast saga status update to client
+        send_saga_status_update(client_pid, state.saga_id, "running", %{
+          resumed: true,
+          pending_steps: MapSet.size(state.pending_steps),
+          running_steps: MapSet.size(state.running_steps)
+        })
 
         # Resume execution of ready steps
         state = execute_ready_steps(state)
@@ -595,6 +629,13 @@ defmodule Kawa.Core.SagaServer do
       {:ok, completed_saga} = update_saga_status(state.saga, "completed")
       record_event(state, "saga_completed", %{})
       Logger.info("Saga #{state.saga_id} completed successfully")
+
+      # Broadcast saga status update to client
+      send_saga_status_update(state.client_pid, state.saga_id, "completed", %{
+        total_steps: total_steps,
+        completed_steps: completed_steps
+      })
+
       %{state | saga: completed_saga}
     else
       state
@@ -617,6 +658,13 @@ defmodule Kawa.Core.SagaServer do
           failed_steps: result.results.failed
         })
 
+        # Broadcast saga status update to client
+        send_saga_status_update(state.client_pid, state.saga_id, result.saga.status, %{
+          compensated_steps: length(result.results.compensated),
+          skipped_steps: length(result.results.skipped),
+          failed_compensations: length(result.results.failed)
+        })
+
         # Update local state to reflect final saga status
         %{state | saga: result.saga}
 
@@ -626,6 +674,12 @@ defmodule Kawa.Core.SagaServer do
 
         # Update saga status to failed
         {:ok, failed_saga} = update_saga_status(state.saga, "failed")
+
+        # Broadcast saga status update to client
+        send_saga_status_update(state.client_pid, state.saga_id, "failed", %{
+          compensation_failure_reason: reason
+        })
+
         %{state | saga: failed_saga}
     end
   end
@@ -731,5 +785,26 @@ defmodule Kawa.Core.SagaServer do
   defp validate_step_result(result, step_definition) do
     result_schema = Map.get(step_definition, "result_schema", %{})
     StepResultValidator.validate_result(result, result_schema)
+  end
+
+  defp send_step_result_acknowledgment(client_pid, saga_id, step_id, status, result_or_error) do
+    if client_pid do
+      message =
+        StepExecutionProtocol.create_step_result_acknowledgment(
+          saga_id,
+          step_id,
+          status,
+          result_or_error
+        )
+
+      send(client_pid, {:step_result_ack, message})
+    end
+  end
+
+  defp send_saga_status_update(client_pid, saga_id, status, details) do
+    if client_pid do
+      message = StepExecutionProtocol.create_saga_status_update(saga_id, status, details)
+      send(client_pid, {:saga_status_update, message})
+    end
   end
 end

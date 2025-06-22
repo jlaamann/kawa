@@ -162,8 +162,8 @@ defmodule Kawa.Execution.CompensationEngineTest do
   describe "compensation execution" do
     test "executes compensation in correct order", %{saga: saga} do
       # Setup completed steps
-      step1 = create_completed_step(saga, "step1", %{})
-      step2 = create_completed_step(saga, "step2", %{}, ["step1"])
+      _step1 = create_completed_step(saga, "step1", %{})
+      _step2 = create_completed_step(saga, "step2", %{}, ["step1"])
       create_failed_step(saga, "step3", ["step2"])
 
       # Execute compensation
@@ -184,7 +184,7 @@ defmodule Kawa.Execution.CompensationEngineTest do
     test "handles steps without compensation", %{saga: saga} do
       # Create step with no compensation
       step1 = create_completed_step(saga, "step1", %{})
-      step1 = update_step_metadata(step1, %{"compensation" => %{"available" => false}})
+      _step1 = update_step_metadata(step1, %{"compensation" => %{"available" => false}})
 
       create_failed_step(saga, "step2", ["step1"])
 
@@ -266,7 +266,7 @@ defmodule Kawa.Execution.CompensationEngineTest do
       assert initial_status.compensation_progress == 0.0
 
       # Start compensation
-      {:ok, result} = CompensationEngine.start_compensation(saga.id)
+      {:ok, _result} = CompensationEngine.start_compensation(saga.id)
 
       {:ok, final_status} = CompensationEngine.get_compensation_status(saga.id)
       assert final_status.total_compensated == 2
@@ -276,9 +276,9 @@ defmodule Kawa.Execution.CompensationEngineTest do
 
     test "handles partial compensation scenarios", %{saga: saga} do
       # Mix of compensatable and non-compensatable steps
-      step1 = create_completed_step(saga, "step1", %{})
+      _step1 = create_completed_step(saga, "step1", %{})
       step2 = create_completed_step(saga, "step2", %{}, ["step1"])
-      step2 = update_step_metadata(step2, %{"compensation" => %{"available" => false}})
+      _step2 = update_step_metadata(step2, %{"compensation" => %{"available" => false}})
 
       create_failed_step(saga, "step3", ["step2"])
 
@@ -302,8 +302,8 @@ defmodule Kawa.Execution.CompensationEngineTest do
     test "handles circular dependencies gracefully", %{saga: saga} do
       # This shouldn't happen in practice due to workflow validation,
       # but we test error handling
-      step1 = create_completed_step(saga, "step1", %{}, ["step2"])
-      step2 = create_completed_step(saga, "step2", %{}, ["step1"])
+      _step1 = create_completed_step(saga, "step1", %{}, ["step2"])
+      _step2 = create_completed_step(saga, "step2", %{}, ["step1"])
       create_failed_step(saga, "step3", ["step1"])
 
       # Should handle the circular dependency error
@@ -319,7 +319,7 @@ defmodule Kawa.Execution.CompensationEngineTest do
 
     test "validates state transitions during compensation", %{saga: saga} do
       # Create step in invalid state for compensation
-      {:ok, invalid_step} =
+      {:ok, _invalid_step} =
         %SagaStep{}
         |> SagaStep.changeset(%{
           saga_id: saga.id,
@@ -386,7 +386,7 @@ defmodule Kawa.Execution.CompensationEngineTest do
     step
   end
 
-  defp create_failed_step(saga, step_id, depends_on \\ []) do
+  defp create_failed_step(saga, step_id, depends_on) do
     {:ok, step} =
       %SagaStep{}
       |> SagaStep.changeset(%{

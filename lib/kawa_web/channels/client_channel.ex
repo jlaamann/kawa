@@ -94,6 +94,17 @@ defmodule KawaWeb.ClientChannel do
   end
 
   @impl true
+  def handle_in("compensation_completed", payload, socket) do
+    handle_compensation_result(payload, socket, "compensation_completed")
+  end
+
+  @impl true
+  def handle_in("compensation_failed", payload, socket) do
+    handle_compensation_result(payload, socket, "compensation_failed")
+  end
+
+  # Legacy support for old message format
+  @impl true
   def handle_in(
         "compensation_result",
         %{"saga_id" => saga_id, "step_id" => step_id, "result" => result, "status" => status},
@@ -102,7 +113,7 @@ defmodule KawaWeb.ClientChannel do
     client = socket.assigns.client
 
     Logger.info(
-      "Client #{client.name} reported compensation result for saga #{saga_id}, step #{step_id}"
+      "Client #{client.name} reported compensation result (legacy format) for saga #{saga_id}, step #{step_id}"
     )
 
     # Forward compensation result to CompensationEngine
@@ -151,6 +162,34 @@ defmodule KawaWeb.ClientChannel do
   end
 
   @impl true
+  def handle_info({:step_result_ack, message}, socket) do
+    client = socket.assigns.client
+
+    Logger.info(
+      "Sending step result acknowledgment to client #{client.name} for saga #{message.saga_id}, step #{message.step_id}"
+    )
+
+    # Send step result acknowledgment to client via WebSocket
+    push(socket, "step_result_ack", message)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:saga_status_update, message}, socket) do
+    client = socket.assigns.client
+
+    Logger.info(
+      "Sending saga status update to client #{client.name} for saga #{message.saga_id}: #{message.status}"
+    )
+
+    # Send saga status update to client via WebSocket
+    push(socket, "saga_status_update", message)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def terminate(_reason, socket) do
     if client = socket.assigns[:client] do
       # Unregister the client
@@ -181,6 +220,43 @@ defmodule KawaWeb.ClientChannel do
 
   defp hash_api_key(api_key) do
     :crypto.hash(:sha256, api_key) |> Base.encode16(case: :lower)
+  end
+
+  defp handle_compensation_result(payload, socket, result_type) do
+    client = socket.assigns.client
+
+    with {:ok, saga_id} <- Map.fetch(payload, "saga_id"),
+         {:ok, step_id} <- Map.fetch(payload, "step_id") do
+      Logger.info(
+        "Client #{client.name} reported #{result_type} for saga #{saga_id}, step #{step_id}"
+      )
+
+      # Extract result or error based on message type
+      result_or_error =
+        case result_type do
+          "compensation_completed" -> Map.get(payload, "result", %{})
+          "compensation_failed" -> Map.get(payload, "error", %{})
+        end
+
+      # Forward compensation result to CompensationEngine
+      compensation_result_message =
+        case result_type do
+          "compensation_completed" -> {:compensation_completed, saga_id, step_id, result_or_error}
+          "compensation_failed" -> {:compensation_failed, saga_id, step_id, result_or_error}
+        end
+
+      # Send message to all processes that might be waiting for this compensation result
+      # This is a broadcast approach - in production you'd want to track specific PIDs
+      Registry.dispatch(Kawa.SagaRegistry, saga_id, fn entries ->
+        for {pid, _} <- entries, do: send(pid, compensation_result_message)
+      end)
+
+      {:reply, {:ok, %{status: "compensation_received"}}, socket}
+    else
+      :error ->
+        Logger.warning("Invalid compensation result payload: missing required fields")
+        {:reply, {:error, %{reason: "invalid_payload"}}, socket}
+    end
   end
 
   defp update_client_status(client, status) do
