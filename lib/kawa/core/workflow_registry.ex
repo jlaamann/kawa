@@ -21,7 +21,7 @@ defmodule Kawa.Core.WorkflowRegistry do
 
     @type t :: %__MODULE__{
             name: String.t(),
-            version: non_neg_integer(),
+            version: String.t(),
             definition: map(),
             client_id: String.t(),
             is_active: boolean(),
@@ -35,12 +35,10 @@ defmodule Kawa.Core.WorkflowRegistry do
 
   defmodule State do
     @moduledoc false
-    defstruct workflows: %{},
-              version_counters: %{}
+    defstruct workflows: %{}
 
     @type t :: %__MODULE__{
-            workflows: %{String.t() => %{non_neg_integer() => WorkflowDefinition.t()}},
-            version_counters: %{String.t() => non_neg_integer()}
+            workflows: %{String.t() => %{String.t() => WorkflowDefinition.t()}}
           }
   end
 
@@ -75,7 +73,7 @@ defmodule Kawa.Core.WorkflowRegistry do
 
   Returns `{:ok, workflow_definition}` if found, `{:error, :not_found}` otherwise.
   """
-  def get_workflow(name, version) when is_binary(name) and is_integer(version) do
+  def get_workflow(name, version) when is_binary(name) and is_binary(version) do
     GenServer.call(__MODULE__, {:get_workflow, name, version})
   end
 
@@ -113,7 +111,7 @@ defmodule Kawa.Core.WorkflowRegistry do
 
   Returns `:ok` on success or `{:error, reason}` on failure.
   """
-  def set_active_version(name, version) when is_binary(name) and is_integer(version) do
+  def set_active_version(name, version) when is_binary(name) and is_binary(version) do
     GenServer.call(__MODULE__, {:set_active_version, name, version})
   end
 
@@ -258,12 +256,12 @@ defmodule Kawa.Core.WorkflowRegistry do
 
   defp register_workflow_impl(name, definition_params, state) do
     now = DateTime.utc_now()
-    current_version = Map.get(state.version_counters, name, 0)
-    new_version = current_version + 1
+    # Use client-provided version from workflow definition
+    client_version = Map.get(definition_params.definition, "version", "1.0.0")
 
     workflow_def = %WorkflowDefinition{
       name: name,
-      version: new_version,
+      version: client_version,
       definition: definition_params.definition,
       client_id: definition_params.client_id,
       is_active: true,
@@ -274,32 +272,82 @@ defmodule Kawa.Core.WorkflowRegistry do
       metadata: definition_params.metadata
     }
 
-    # Deactivate previous versions
-    updated_workflows =
-      case Map.get(state.workflows, name) do
-        nil ->
-          %{new_version => workflow_def}
+    # Handle workflow versions
+    case Map.get(state.workflows, name) do
+      nil ->
+        # New workflow name
+        updated_workflows = %{client_version => workflow_def}
 
-        existing_versions ->
-          deactivated_versions =
-            existing_versions
-            |> Enum.map(fn {v, def} -> {v, %{def | is_active: false}} end)
-            |> Map.new()
+        new_state = %{
+          state
+          | workflows: Map.put(state.workflows, name, updated_workflows)
+        }
 
-          Map.put(deactivated_versions, new_version, workflow_def)
-      end
+        Logger.info(
+          "Registered workflow '#{name}' version #{client_version} for client '#{definition_params.client_id}'"
+        )
 
-    new_state = %{
-      state
-      | workflows: Map.put(state.workflows, name, updated_workflows),
-        version_counters: Map.put(state.version_counters, name, new_version)
-    }
+        {:reply, {:ok, client_version}, new_state}
 
-    Logger.info(
-      "Registered workflow '#{name}' version #{new_version} for client '#{definition_params.client_id}'"
-    )
+      existing_versions ->
+        # Check if this version already exists
+        case Map.get(existing_versions, client_version) do
+          nil ->
+            # New version of existing workflow, deactivate all others
+            deactivated_versions =
+              existing_versions
+              |> Enum.map(fn {v, def} -> {v, %{def | is_active: false}} end)
+              |> Map.new()
 
-    {:reply, {:ok, new_version}, new_state}
+            updated_workflows = Map.put(deactivated_versions, client_version, workflow_def)
+
+            new_state = %{
+              state
+              | workflows: Map.put(state.workflows, name, updated_workflows)
+            }
+
+            Logger.info(
+              "Registered workflow '#{name}' version #{client_version} for client '#{definition_params.client_id}'"
+            )
+
+            {:reply, {:ok, client_version}, new_state}
+
+          existing_workflow ->
+            # Version exists, check if content is different
+            if existing_workflow.definition != definition_params.definition do
+              # Different content - return error
+              {:reply, {:error, :version_already_exists}, state}
+            else
+              # Same content - update metadata and timestamps but keep same definition
+              updated_workflow = %{
+                existing_workflow
+                | client_id: definition_params.client_id,
+                  updated_at: DateTime.utc_now(),
+                  metadata: definition_params.metadata,
+                  is_active: true
+              }
+
+              # Deactivate all other versions
+              deactivated_versions =
+                existing_versions
+                |> Enum.map(fn {v, def} -> {v, %{def | is_active: v == client_version}} end)
+                |> Map.new()
+
+              updated_workflows = Map.put(deactivated_versions, client_version, updated_workflow)
+
+              new_state = %{
+                state
+                | workflows: Map.put(state.workflows, name, updated_workflows)
+              }
+
+              Logger.info(
+                "Re-registered workflow '#{name}' version #{client_version} for client '#{definition_params.client_id}' (same content)"
+              )
+
+              {:reply, {:ok, client_version}, new_state}
+            end
+        end
+    end
   end
 
   defp update_workflow_impl(name, definition_params, make_active, state) do
@@ -309,12 +357,12 @@ defmodule Kawa.Core.WorkflowRegistry do
 
       _existing_versions ->
         now = DateTime.utc_now()
-        current_version = Map.get(state.version_counters, name, 0)
-        new_version = current_version + 1
+        # Use client-provided version from workflow definition
+        client_version = Map.get(definition_params.definition, "version", "1.0.0")
 
         workflow_def = %WorkflowDefinition{
           name: name,
-          version: new_version,
+          version: client_version,
           definition: definition_params.definition,
           client_id: definition_params.client_id,
           is_active: make_active,
@@ -336,23 +384,22 @@ defmodule Kawa.Core.WorkflowRegistry do
                     |> Enum.map(fn {v, def} -> {v, %{def | is_active: false}} end)
                     |> Map.new()
 
-                  Map.put(deactivated, new_version, workflow_def)
+                  Map.put(deactivated, client_version, workflow_def)
                 else
-                  Map.put(versions, new_version, workflow_def)
+                  Map.put(versions, client_version, workflow_def)
                 end
               end).()
 
         new_state = %{
           state
-          | workflows: Map.put(state.workflows, name, updated_workflows),
-            version_counters: Map.put(state.version_counters, name, new_version)
+          | workflows: Map.put(state.workflows, name, updated_workflows)
         }
 
         Logger.info(
-          "Updated workflow '#{name}' to version #{new_version} for client '#{definition_params.client_id}' (active: #{make_active})"
+          "Updated workflow '#{name}' to version #{client_version} for client '#{definition_params.client_id}' (active: #{make_active})"
         )
 
-        {:reply, {:ok, new_version}, new_state}
+        {:reply, {:ok, client_version}, new_state}
     end
   end
 

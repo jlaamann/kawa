@@ -3,8 +3,11 @@ defmodule KawaWeb.ClientChannel do
 
   alias Kawa.{Repo}
   alias Kawa.Core.ClientRegistry
+  alias Kawa.Core.WorkflowRegistry
   alias Kawa.Schemas.Client
+  alias Kawa.Schemas.WorkflowDefinition
   alias Kawa.Utils.ApiKey
+  alias Kawa.Contexts.Workflows
 
   require Logger
 
@@ -36,6 +39,8 @@ defmodule KawaWeb.ClientChannel do
   end
 
   @impl true
+  @spec handle_in(<<_::64, _::_*8>>, any(), any()) ::
+          {:reply, {:error, map()} | {:ok, map()}, any()}
   def handle_in("heartbeat", _payload, socket) do
     client = socket.assigns.client
 
@@ -50,7 +55,7 @@ defmodule KawaWeb.ClientChannel do
   end
 
   @impl true
-  def handle_in("register_workflow", %{"workflow" => workflow_def}, socket) do
+  def handle_in("register_workflow", workflow_def, socket) do
     client = socket.assigns.client
 
     case Kawa.Validation.WorkflowValidator.validate(workflow_def) do
@@ -59,9 +64,58 @@ defmodule KawaWeb.ClientChannel do
           "Client #{client.name} registering valid workflow: #{validated_workflow["name"]}"
         )
 
-        # TODO: Store workflow definition in database
-        {:reply, {:ok, %{status: "workflow_registered", workflow_id: validated_workflow["name"]}},
-         socket}
+        case store_workflow_definition(client, validated_workflow) do
+          {:ok, workflow_db_record} ->
+            # Deactivate previous versions in the DB
+            Workflows.deactivate_previous_versions(workflow_db_record)
+
+            # Also register in the in-memory registry for runtime use
+            workflow_params = %{
+              definition: validated_workflow,
+              client_id: client.id,
+              metadata: %{
+                "database_id" => workflow_db_record.id,
+                "registered_via" => "websocket"
+              }
+            }
+
+            case WorkflowRegistry.register_workflow(validated_workflow["name"], workflow_params) do
+              {:ok, version} ->
+                Logger.info(
+                  "Workflow '#{validated_workflow["name"]}' v#{version} stored in database and registered in memory for client #{client.name}"
+                )
+
+                {:reply,
+                 {:ok,
+                  %{
+                    status: "workflow_registered",
+                    workflow_id: validated_workflow["name"],
+                    version: version,
+                    database_id: workflow_db_record.id
+                  }}, socket}
+
+              {:error, registry_error} ->
+                Logger.error(
+                  "Failed to register workflow in memory registry: #{inspect(registry_error)}"
+                )
+
+                {:reply, {:error, %{reason: "registry_error", details: registry_error}}, socket}
+            end
+
+          {:error, :version_already_exists} ->
+            Logger.error(
+              "Failed to store workflow definition in database: workflow with the provided version already exists"
+            )
+
+            {:reply, {:error, :version_already_exists}, socket}
+
+          {:error, changeset} ->
+            Logger.error(
+              "Failed to store workflow definition in database: #{inspect(changeset.errors)}"
+            )
+
+            {:reply, {:error, %{reason: "database_error", errors: changeset.errors}}, socket}
+        end
 
       {:error, validation_errors} ->
         Logger.warning(
@@ -266,5 +320,50 @@ defmodule KawaWeb.ClientChannel do
       last_heartbeat_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
     |> Repo.update()
+  end
+
+  defp store_workflow_definition(client, validated_workflow) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    # Generate a checksum for the workflow definition
+    definition_json = Jason.encode!(validated_workflow)
+    checksum = :crypto.hash(:sha256, definition_json) |> Base.encode16(case: :lower)
+
+    # Extract workflow metadata
+    workflow_name = validated_workflow["name"]
+    version = Map.get(validated_workflow, "version", "1.0.0")
+    module_name = Map.get(validated_workflow, "module_name", workflow_name)
+    timeout_ms = Map.get(validated_workflow, "timeout_ms", 300_000)
+
+    retry_policy =
+      Map.get(validated_workflow, "retry_policy", %{"max_retries" => 3, "backoff_ms" => 1000})
+
+    # Check if workflow with same name and version already exists for this client
+    case Repo.get_by(WorkflowDefinition,
+           client_id: client.id,
+           name: workflow_name,
+           version: version
+         ) do
+      nil ->
+        # Create new workflow definition
+        %WorkflowDefinition{}
+        |> WorkflowDefinition.changeset(%{
+          name: workflow_name,
+          version: version,
+          module_name: module_name,
+          definition: validated_workflow,
+          definition_checksum: checksum,
+          default_timeout_ms: timeout_ms,
+          default_retry_policy: retry_policy,
+          is_active: true,
+          validation_errors: [],
+          registered_at: now,
+          client_id: client.id
+        })
+        |> Repo.insert()
+
+      _existing_workflow ->
+        {:error, :version_already_exists}
+    end
   end
 end

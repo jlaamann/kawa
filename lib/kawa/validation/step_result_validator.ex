@@ -34,7 +34,7 @@ defmodule Kawa.Validation.StepResultValidator do
     validators = [
       &validate_basic_structure/2,
       &validate_schema_compliance/2,
-      # TODO: business rules can't be set yet
+      # DEV-TODO: business rules can't be set yet
       &validate_business_rules/2,
       &validate_data_types/2,
       &validate_constraints/2
@@ -96,7 +96,7 @@ defmodule Kawa.Validation.StepResultValidator do
   @doc """
   Classifies an error as retryable or non-retryable.
 
-  TODO: unused at the moment
+  DEV-TODO: unused at the moment
 
   Returns `{:retryable, reason}` or `{:non_retryable, reason}`.
   """
