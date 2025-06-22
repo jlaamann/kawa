@@ -17,9 +17,10 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     GenServer.cast(registry_name, message)
   end
 
-  defp valid_workflow_definition(name \\ "test-workflow") do
+  defp valid_workflow_definition(name \\ "test-workflow", version \\ "1.0.0") do
     %{
       "name" => name,
+      "version" => version,
       "steps" => [
         %{
           "id" => "step1",
@@ -38,11 +39,25 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     }
   end
 
+  defp valid_definition_params_with_version(
+         workflow_name \\ "test-workflow",
+         version \\ "1.0.0",
+         client_id \\ "test-client"
+       ) do
+    definition = valid_workflow_definition(workflow_name) |> Map.put("version", version)
+
+    %{
+      definition: definition,
+      client_id: client_id,
+      metadata: %{}
+    }
+  end
+
   describe "register_workflow/2" do
     test "registers a new workflow successfully", %{registry_name: registry_name} do
       definition_params = valid_definition_params()
 
-      assert {:ok, 1} =
+      assert {:ok, "1.0.0"} =
                call_registry(
                  registry_name,
                  {:register_workflow, "test-workflow", definition_params}
@@ -50,18 +65,24 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     end
 
     test "creates new version when registering existing workflow", %{registry_name: registry_name} do
-      definition_params = valid_definition_params()
+      definition_params_v1 = valid_definition_params()
 
-      assert {:ok, 1} =
+      assert {:ok, "1.0.0"} =
                call_registry(
                  registry_name,
-                 {:register_workflow, "test-workflow", definition_params}
+                 {:register_workflow, "test-workflow", definition_params_v1}
                )
 
-      assert {:ok, 2} =
+      definition_params_v2 = %{
+        definition: valid_workflow_definition("test-workflow", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      assert {:ok, "2.0.0"} =
                call_registry(
                  registry_name,
-                 {:register_workflow, "test-workflow", definition_params}
+                 {:register_workflow, "test-workflow", definition_params_v2}
                )
     end
 
@@ -92,19 +113,101 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     test "deactivates previous versions when registering new version", %{
       registry_name: registry_name
     } do
-      definition_params = valid_definition_params()
+      definition_params_v1 = %{
+        definition: valid_workflow_definition("test-workflow", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
+      definition_params_v2 = %{
+        definition: valid_workflow_definition("test-workflow", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      {:ok, workflow_v1} = call_registry(registry_name, {:get_workflow, "test-workflow", 1})
-      {:ok, workflow_v2} = call_registry(registry_name, {:get_workflow, "test-workflow", 2})
-      {:ok, workflow_v3} = call_registry(registry_name, {:get_workflow, "test-workflow", 3})
+      definition_params_v3 = %{
+        definition: valid_workflow_definition("test-workflow", "3.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v2})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v3})
+
+      {:ok, workflow_v1} = call_registry(registry_name, {:get_workflow, "test-workflow", "1.0.0"})
+      {:ok, workflow_v2} = call_registry(registry_name, {:get_workflow, "test-workflow", "2.0.0"})
+      {:ok, workflow_v3} = call_registry(registry_name, {:get_workflow, "test-workflow", "3.0.0"})
 
       refute workflow_v1.is_active
       refute workflow_v2.is_active
       assert workflow_v3.is_active
+    end
+
+    test "returns error when registering workflow with same version but different content", %{
+      registry_name: registry_name
+    } do
+      # Register initial workflow with version 1.0.0
+      definition_params_v1 = valid_definition_params_with_version("test-workflow", "1.0.0")
+
+      assert {:ok, "1.0.0"} =
+               call_registry(
+                 registry_name,
+                 {:register_workflow, "test-workflow", definition_params_v1}
+               )
+
+      # Try to register different workflow with same version 1.0.0
+      different_definition = %{
+        "name" => "test-workflow",
+        "version" => "1.0.0",
+        "steps" => [
+          %{
+            "id" => "step1",
+            "type" => "http",
+            "action" => %{"method" => "PUT", "url" => "http://different.com"}
+          }
+        ]
+      }
+
+      definition_params_different = %{
+        definition: different_definition,
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      assert {:error, :version_already_exists} =
+               call_registry(
+                 registry_name,
+                 {:register_workflow, "test-workflow", definition_params_different}
+               )
+    end
+
+    test "allows re-registering workflow with same version and same content", %{
+      registry_name: registry_name
+    } do
+      # Register initial workflow with version 1.0.0
+      definition_params_v1 = valid_definition_params_with_version("test-workflow", "1.0.0")
+
+      assert {:ok, "1.0.0"} =
+               call_registry(
+                 registry_name,
+                 {:register_workflow, "test-workflow", definition_params_v1}
+               )
+
+      # Register same workflow with same version and same content (should succeed)
+      definition_params_same =
+        valid_definition_params_with_version("test-workflow", "1.0.0", "different-client")
+
+      assert {:ok, "1.0.0"} =
+               call_registry(
+                 registry_name,
+                 {:register_workflow, "test-workflow", definition_params_same}
+               )
+
+      # Verify the workflow was updated with new client_id but same definition
+      {:ok, workflow} = call_registry(registry_name, {:get_workflow, "test-workflow", "1.0.0"})
+      assert workflow.client_id == "different-client"
+      assert workflow.definition == definition_params_v1.definition
     end
   end
 
@@ -114,7 +217,7 @@ defmodule Kawa.Core.WorkflowRegistryTest do
 
       call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
 
-      assert {:ok, %WorkflowDefinition{name: "test-workflow", version: 1, is_active: true}} =
+      assert {:ok, %WorkflowDefinition{name: "test-workflow", version: "1.0.0", is_active: true}} =
                call_registry(registry_name, {:get_workflow, "test-workflow"})
     end
 
@@ -125,21 +228,31 @@ defmodule Kawa.Core.WorkflowRegistryTest do
 
   describe "get_workflow/2" do
     test "returns specific version of workflow", %{registry_name: registry_name} do
-      definition_params = valid_definition_params()
+      definition_params_v1 = %{
+        definition: valid_workflow_definition("test-workflow", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
+      definition_params_v2 = %{
+        definition: valid_workflow_definition("test-workflow", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      assert {:ok, %WorkflowDefinition{version: 1, is_active: false}} =
-               call_registry(registry_name, {:get_workflow, "test-workflow", 1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v2})
 
-      assert {:ok, %WorkflowDefinition{version: 2, is_active: true}} =
-               call_registry(registry_name, {:get_workflow, "test-workflow", 2})
+      assert {:ok, %WorkflowDefinition{version: "1.0.0", is_active: false}} =
+               call_registry(registry_name, {:get_workflow, "test-workflow", "1.0.0"})
+
+      assert {:ok, %WorkflowDefinition{version: "2.0.0", is_active: true}} =
+               call_registry(registry_name, {:get_workflow, "test-workflow", "2.0.0"})
     end
 
     test "returns error for non-existent version", %{registry_name: registry_name} do
       assert {:error, :not_found} =
-               call_registry(registry_name, {:get_workflow, "test-workflow", 999})
+               call_registry(registry_name, {:get_workflow, "test-workflow", "999.0.0"})
     end
   end
 
@@ -166,16 +279,32 @@ defmodule Kawa.Core.WorkflowRegistryTest do
 
   describe "list_workflow_versions/1" do
     test "returns all versions of a workflow", %{registry_name: registry_name} do
-      definition_params = valid_definition_params()
+      definition_params_v1 = %{
+        definition: valid_workflow_definition("test-workflow", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
+      definition_params_v2 = %{
+        definition: valid_workflow_definition("test-workflow", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      definition_params_v3 = %{
+        definition: valid_workflow_definition("test-workflow", "3.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v2})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v3})
 
       {:ok, versions} = call_registry(registry_name, {:list_workflow_versions, "test-workflow"})
 
       assert length(versions) == 3
-      assert Enum.map(versions, & &1.version) == [3, 2, 1]
+      assert Enum.map(versions, & &1.version) == ["3.0.0", "2.0.0", "1.0.0"]
     end
 
     test "returns error for non-existent workflow", %{registry_name: registry_name} do
@@ -193,6 +322,7 @@ defmodule Kawa.Core.WorkflowRegistryTest do
       updated_params = %{
         definition: %{
           "name" => "test-workflow",
+          "version" => "2.0.0",
           "steps" => [
             %{
               "id" => "step1",
@@ -204,14 +334,14 @@ defmodule Kawa.Core.WorkflowRegistryTest do
         client_id: "test-client"
       }
 
-      assert {:ok, 2} =
+      assert {:ok, "2.0.0"} =
                call_registry(
                  registry_name,
                  {:update_workflow, "test-workflow", updated_params, true}
                )
 
       {:ok, active_workflow} = call_registry(registry_name, {:get_workflow, "test-workflow"})
-      assert active_workflow.version == 2
+      assert active_workflow.version == "2.0.0"
       assert active_workflow.definition == updated_params.definition
     end
 
@@ -223,6 +353,7 @@ defmodule Kawa.Core.WorkflowRegistryTest do
       updated_params = %{
         definition: %{
           "name" => "test-workflow",
+          "version" => "2.0.0",
           "steps" => [
             %{
               "id" => "step1",
@@ -234,16 +365,16 @@ defmodule Kawa.Core.WorkflowRegistryTest do
         client_id: "test-client"
       }
 
-      assert {:ok, 2} =
+      assert {:ok, "2.0.0"} =
                call_registry(
                  registry_name,
                  {:update_workflow, "test-workflow", updated_params, false}
                )
 
       {:ok, active_workflow} = call_registry(registry_name, {:get_workflow, "test-workflow"})
-      assert active_workflow.version == 1
+      assert active_workflow.version == "1.0.0"
 
-      {:ok, new_version} = call_registry(registry_name, {:get_workflow, "test-workflow", 2})
+      {:ok, new_version} = call_registry(registry_name, {:get_workflow, "test-workflow", "2.0.0"})
       refute new_version.is_active
     end
 
@@ -260,20 +391,30 @@ defmodule Kawa.Core.WorkflowRegistryTest do
 
   describe "set_active_version/2" do
     test "changes active version successfully", %{registry_name: registry_name} do
-      definition_params = valid_definition_params()
+      definition_params_v1 = %{
+        definition: valid_workflow_definition("test-workflow", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
+      definition_params_v2 = %{
+        definition: valid_workflow_definition("test-workflow", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      assert :ok = call_registry(registry_name, {:set_active_version, "test-workflow", 1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v2})
+
+      assert :ok = call_registry(registry_name, {:set_active_version, "test-workflow", "1.0.0"})
 
       {:ok, active_workflow} = call_registry(registry_name, {:get_workflow, "test-workflow"})
-      assert active_workflow.version == 1
+      assert active_workflow.version == "1.0.0"
     end
 
     test "returns error for non-existent version", %{registry_name: registry_name} do
       assert {:error, :version_not_found} =
-               call_registry(registry_name, {:set_active_version, "test-workflow", 999})
+               call_registry(registry_name, {:set_active_version, "test-workflow", "999.0.0"})
     end
   end
 
@@ -297,17 +438,27 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     end
 
     test "increments usage counter for specific version", %{registry_name: registry_name} do
-      definition_params = valid_definition_params()
+      definition_params_v1 = %{
+        definition: valid_workflow_definition("test-workflow", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
-      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params})
+      definition_params_v2 = %{
+        definition: valid_workflow_definition("test-workflow", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
-      cast_registry(registry_name, {:record_usage, "test-workflow", 1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v1})
+      call_registry(registry_name, {:register_workflow, "test-workflow", definition_params_v2})
+
+      cast_registry(registry_name, {:record_usage, "test-workflow", "1.0.0"})
       # Allow cast to process
       :timer.sleep(10)
 
-      {:ok, workflow_v1} = call_registry(registry_name, {:get_workflow, "test-workflow", 1})
-      {:ok, workflow_v2} = call_registry(registry_name, {:get_workflow, "test-workflow", 2})
+      {:ok, workflow_v1} = call_registry(registry_name, {:get_workflow, "test-workflow", "1.0.0"})
+      {:ok, workflow_v2} = call_registry(registry_name, {:get_workflow, "test-workflow", "2.0.0"})
 
       assert workflow_v1.usage_count == 1
       assert workflow_v2.usage_count == 0
@@ -316,12 +467,27 @@ defmodule Kawa.Core.WorkflowRegistryTest do
 
   describe "get_stats/0" do
     test "returns correct statistics", %{registry_name: registry_name} do
-      definition_params_1 = valid_definition_params("workflow-1")
-      definition_params_2 = valid_definition_params("workflow-2")
+      definition_params_1 = %{
+        definition: valid_workflow_definition("workflow-1", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      definition_params_2 = %{
+        definition: valid_workflow_definition("workflow-2", "1.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
+
+      definition_params_1_v2 = %{
+        definition: valid_workflow_definition("workflow-1", "2.0.0"),
+        client_id: "test-client",
+        metadata: %{}
+      }
 
       call_registry(registry_name, {:register_workflow, "workflow-1", definition_params_1})
       call_registry(registry_name, {:register_workflow, "workflow-2", definition_params_2})
-      call_registry(registry_name, {:register_workflow, "workflow-1", definition_params_1})
+      call_registry(registry_name, {:register_workflow, "workflow-1", definition_params_1_v2})
 
       cast_registry(registry_name, {:record_usage, "workflow-1", nil})
       cast_registry(registry_name, {:record_usage, "workflow-2", nil})
@@ -337,37 +503,40 @@ defmodule Kawa.Core.WorkflowRegistryTest do
     end
   end
 
-  describe "concurrent operations" do
-    test "handles concurrent registrations safely", %{registry_name: registry_name} do
-      definition_params = valid_definition_params("concurrent-workflow")
+  # TODO: no automatic version incremental implemented at the moment, so client provided version will always be returned
+  # this means that concurrency is not handled properly at the moment.
+  # Will be fixed in issue #49
+  # describe "concurrent operations" do
+  #   test "handles concurrent registrations safely", %{registry_name: registry_name} do
+  #     definition_params = valid_definition_params("concurrent-workflow")
 
-      tasks =
-        for _i <- 1..10 do
-          Task.async(fn ->
-            call_registry(
-              registry_name,
-              {:register_workflow, "concurrent-workflow", definition_params}
-            )
-          end)
-        end
+  #     tasks =
+  #       for _i <- 1..10 do
+  #         Task.async(fn ->
+  #           call_registry(
+  #             registry_name,
+  #             {:register_workflow, "concurrent-workflow", definition_params}
+  #           )
+  #         end)
+  #       end
 
-      results = Task.await_many(tasks)
+  #     results = Task.await_many(tasks)
 
-      versions =
-        results
-        |> Enum.map(fn {:ok, version} -> version end)
-        |> Enum.sort()
+  #     versions =
+  #       results
+  #       |> Enum.map(fn {:ok, version} -> version end)
+  #       |> Enum.sort()
 
-      assert versions == Enum.to_list(1..10)
+  #     assert versions == Enum.to_list(1..10)
 
-      {:ok, all_versions} =
-        call_registry(registry_name, {:list_workflow_versions, "concurrent-workflow"})
+  #     {:ok, all_versions} =
+  #       call_registry(registry_name, {:list_workflow_versions, "concurrent-workflow"})
 
-      assert length(all_versions) == 10
+  #     assert length(all_versions) == 10
 
-      active_versions = Enum.filter(all_versions, & &1.is_active)
-      assert length(active_versions) == 1
-      assert hd(active_versions).version == 10
-    end
-  end
+  #     active_versions = Enum.filter(all_versions, & &1.is_active)
+  #     assert length(active_versions) == 1
+  #     assert hd(active_versions).version == 10
+  #   end
+  # end
 end

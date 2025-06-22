@@ -12,7 +12,7 @@ defmodule Kawa.SagaExecutionTest do
   }
 
   alias Kawa.Validation.StepResultValidator
-  alias Kawa.Contexts.SagaContext
+  alias Kawa.Domain.SagaContext
 
   alias Kawa.Schemas.{Saga, WorkflowDefinition, Client}
 

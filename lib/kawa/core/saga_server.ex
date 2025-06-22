@@ -21,7 +21,7 @@ defmodule Kawa.Core.SagaServer do
     CompensationEngine
   }
 
-  alias Kawa.Contexts.SagaContext
+  alias Kawa.Domain.SagaContext
   alias Kawa.Validation.StepResultValidator
   import Ecto.Query
 

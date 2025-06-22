@@ -18,6 +18,7 @@ defmodule KawaWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/workflows", WorkflowLive.Index, :index
   end
 
   # API routes

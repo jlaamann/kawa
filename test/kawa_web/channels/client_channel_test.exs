@@ -91,7 +91,7 @@ defmodule KawaWeb.ClientChannelTest do
         ]
       }
 
-      ref = push(socket, "register_workflow", %{"workflow" => workflow_def})
+      ref = push(socket, "register_workflow", workflow_def)
 
       assert_reply ref, :ok, %{status: "workflow_registered", workflow_id: "test-workflow"}
     end
@@ -104,7 +104,7 @@ defmodule KawaWeb.ClientChannelTest do
         "steps" => []
       }
 
-      ref = push(socket, "register_workflow", %{"workflow" => invalid_workflow})
+      ref = push(socket, "register_workflow", invalid_workflow)
 
       assert_reply ref, :error, %{reason: "validation_failed", errors: errors}
       assert is_list(errors)
