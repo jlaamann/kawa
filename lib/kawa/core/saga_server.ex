@@ -17,7 +17,8 @@ defmodule Kawa.Core.SagaServer do
     StepDependencyResolver,
     StepStateMachine,
     StepExecutionProtocol,
-    StepExecutionTracker
+    StepExecutionTracker,
+    CompensationEngine
   }
 
   alias Kawa.Contexts.SagaContext
@@ -603,15 +604,30 @@ defmodule Kawa.Core.SagaServer do
   defp start_compensation(state) do
     Logger.info("Starting compensation for saga #{state.saga_id}")
 
-    {:ok, compensating_saga} = update_saga_status(state.saga, "compensating")
-    state = %{state | saga: compensating_saga}
-
     record_event(state, "compensation_started", %{})
 
-    # TODO: Implement compensation logic
-    # For now, just mark as compensated
-    {:ok, compensated_saga} = update_saga_status(state.saga, "compensated")
-    %{state | saga: compensated_saga}
+    # Use CompensationEngine to handle the actual compensation logic
+    case CompensationEngine.start_compensation(state.saga_id) do
+      {:ok, result} ->
+        Logger.info("Compensation completed successfully for saga #{state.saga_id}")
+
+        record_event(state, "compensation_completed", %{
+          compensated_steps: result.results.compensated,
+          skipped_steps: result.results.skipped,
+          failed_steps: result.results.failed
+        })
+
+        # Update local state to reflect final saga status
+        %{state | saga: result.saga}
+
+      {:error, reason} ->
+        Logger.error("Compensation failed for saga #{state.saga_id}: #{inspect(reason)}")
+        record_event(state, "compensation_failed", %{reason: reason})
+
+        # Update saga status to failed
+        {:ok, failed_saga} = update_saga_status(state.saga, "failed")
+        %{state | saga: failed_saga}
+    end
   end
 
   defp find_client(client_id) do
