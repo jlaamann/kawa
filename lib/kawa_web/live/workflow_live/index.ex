@@ -28,6 +28,8 @@ defmodule KawaWeb.WorkflowLive.Index do
       |> assign(:loading, false)
       |> assign(:selected_workflow, nil)
       |> assign(:show_workflow_modal, false)
+      |> assign(:workflow_versions, [])
+      |> assign(:selected_version, nil)
 
     {:ok, socket}
   end
@@ -51,6 +53,9 @@ defmodule KawaWeb.WorkflowLive.Index do
         {:noreply, put_flash(socket, :error, "Workflow not found")}
 
       workflow ->
+        # Load all versions of this workflow
+        versions = Workflows.list_workflow_versions(workflow.name)
+
         # Ensure definition is a map, handle string JSON or nil cases
         definition =
           case workflow.definition do
@@ -75,6 +80,8 @@ defmodule KawaWeb.WorkflowLive.Index do
         socket =
           socket
           |> assign(:selected_workflow, updated_workflow)
+          |> assign(:workflow_versions, versions)
+          |> assign(:selected_version, workflow.version)
           |> assign(:show_workflow_modal, true)
 
         {:noreply, socket}
@@ -86,8 +93,65 @@ defmodule KawaWeb.WorkflowLive.Index do
       socket
       |> assign(:selected_workflow, nil)
       |> assign(:show_workflow_modal, false)
+      |> assign(:workflow_versions, [])
+      |> assign(:selected_version, nil)
 
     {:noreply, socket}
+  end
+
+  def handle_event("switch_version", %{"version" => version}, socket) do
+    case Enum.find(socket.assigns.workflow_versions, &(&1.version == version)) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Version not found")}
+
+      version_workflow ->
+        # Process the definition like in show_workflow
+        definition =
+          case version_workflow.definition do
+            nil ->
+              %{}
+
+            definition when is_map(definition) ->
+              definition
+
+            definition when is_binary(definition) ->
+              case Jason.decode(definition) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> %{"error" => "Invalid JSON definition"}
+              end
+
+            _ ->
+              %{"error" => "Invalid definition format"}
+          end
+
+        # Create a unified workflow object similar to the original show_workflow logic
+        updated_workflow = %{
+          id: "db_#{version_workflow.id}",
+          name: version_workflow.name,
+          version: version_workflow.version,
+          definition: definition,
+          client_id: version_workflow.client_id,
+          client_name: if(version_workflow.client, do: version_workflow.client.name, else: nil),
+          is_active: version_workflow.is_active,
+          in_memory: false,
+          usage_count: 0,
+          last_used_at: nil,
+          registered_at: version_workflow.registered_at || version_workflow.inserted_at,
+          source: "database",
+          metadata: %{
+            "database_id" => version_workflow.id,
+            "module_name" => version_workflow.module_name,
+            "definition_checksum" => version_workflow.definition_checksum
+          }
+        }
+
+        socket =
+          socket
+          |> assign(:selected_workflow, updated_workflow)
+          |> assign(:selected_version, version)
+
+        {:noreply, socket}
+    end
   end
 
   defp create_unified_workflow_list(registry_workflows, db_workflows) do

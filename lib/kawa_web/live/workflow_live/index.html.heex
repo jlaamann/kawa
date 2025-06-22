@@ -95,6 +95,33 @@
           Version {@selected_workflow.version} • Client: {@selected_workflow.client_name ||
             @selected_workflow.client_id}
         </p>
+        
+        <!-- Version Selection -->
+        <%= if length(@workflow_versions) > 1 do %>
+          <div class="mt-4">
+            <label class="text-sm font-medium text-gray-700">Version History</label>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                :for={version <- @workflow_versions}
+                type="button"
+                phx-click="switch_version"
+                phx-value-version={version.version}
+                class={[
+                  "inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-200",
+                  if(@selected_version == version.version,
+                    do: "bg-blue-100 text-blue-800 border-blue-300",
+                    else: "bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100"
+                  )
+                ]}
+              >
+                <span>v{version.version}</span>
+                <%= if version.is_active do %>
+                  <span class="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-green-400" title="Active version"></span>
+                <% end %>
+              </button>
+            </div>
+          </div>
+        <% end %>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
