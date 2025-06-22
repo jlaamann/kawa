@@ -31,4 +31,39 @@ defmodule Kawa.Contexts.Workflows do
     |> where([w], w.name == ^current_workflow.name and w.version < ^current_workflow.version)
     |> Repo.update_all(set: [is_active: false])
   end
+
+  @doc """
+  Returns all versions of a workflow by name, ordered by version descending.
+
+  ## Examples
+
+      iex> list_workflow_versions("payment_workflow")
+      [%WorkflowDefinition{version: "2.0.0"}, %WorkflowDefinition{version: "1.0.0"}]
+
+  """
+  def list_workflow_versions(workflow_name) do
+    WorkflowDefinition
+    |> where([w], w.name == ^workflow_name)
+    |> preload(:client)
+    |> order_by([w], desc: w.version)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single workflow definition by ID.
+
+  ## Examples
+
+      iex> get_workflow_definition("123")
+      %WorkflowDefinition{}
+
+      iex> get_workflow_definition("456")
+      nil
+
+  """
+  def get_workflow_definition(id) do
+    WorkflowDefinition
+    |> preload(:client)
+    |> Repo.get(id)
+  end
 end
