@@ -25,4 +25,10 @@ defmodule Kawa.Contexts.Workflows do
     |> order_by([w], desc: w.inserted_at)
     |> Repo.all()
   end
+
+  def deactivate_previous_versions(current_workflow) do
+    WorkflowDefinition
+    |> where([w], w.name == ^current_workflow.name and w.version < ^current_workflow.version)
+    |> Repo.update_all(set: [is_active: false])
+  end
 end

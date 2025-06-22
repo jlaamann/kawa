@@ -7,6 +7,7 @@ defmodule KawaWeb.ClientChannel do
   alias Kawa.Schemas.Client
   alias Kawa.Schemas.WorkflowDefinition
   alias Kawa.Utils.ApiKey
+  alias Kawa.Contexts.Workflows
 
   require Logger
 
@@ -65,6 +66,9 @@ defmodule KawaWeb.ClientChannel do
 
         case store_workflow_definition(client, validated_workflow) do
           {:ok, workflow_db_record} ->
+            # Deactivate previous versions in the DB
+            Workflows.deactivate_previous_versions(workflow_db_record)
+
             # Also register in the in-memory registry for runtime use
             workflow_params = %{
               definition: validated_workflow,
