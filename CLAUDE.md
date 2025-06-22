@@ -61,6 +61,8 @@ As a saga orchestration engine, this project will implement:
 ### Client-server communication
 Clients will communicate with the orchestrator over WebSockets.
 
+Message formats are defined in lib/kawa/execution/step_execution_protocol.ex. Please make use of these and define new ones in that file if needed.
+
 ### Database schema
 Database schema is defined in a UML file located in docs/schema.uml.
 
