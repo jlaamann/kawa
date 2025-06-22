@@ -84,6 +84,11 @@ defmodule Kawa.Core.ClientRegistry do
     new_state = Map.put(state, client_id, pid)
     Logger.debug("Registered client #{client_id} with PID #{inspect(pid)}")
 
+    # Check for paused sagas and attempt to resume them
+    Task.start(fn ->
+      resume_client_sagas(client_id)
+    end)
+
     {:reply, :ok, new_state}
   end
 
@@ -91,6 +96,11 @@ defmodule Kawa.Core.ClientRegistry do
   def handle_call({:unregister, client_id}, _from, state) do
     new_state = Map.delete(state, client_id)
     Logger.debug("Unregistered client #{client_id}")
+
+    # Pause running sagas for this client
+    Task.start(fn ->
+      pause_client_sagas(client_id)
+    end)
 
     {:reply, :ok, new_state}
   end
@@ -123,9 +133,79 @@ defmodule Kawa.Core.ClientRegistry do
     if client_id do
       new_state = Map.delete(state, client_id)
       Logger.info("Client #{client_id} process died, removing from registry")
+
+      # Pause running sagas for this client
+      Task.start(fn ->
+        pause_client_sagas(client_id)
+      end)
+
       {:noreply, new_state}
     else
       {:noreply, state}
     end
+  end
+
+  # Private functions for saga management
+
+  defp resume_client_sagas(client_id) do
+    Logger.info("Attempting to resume sagas for reconnected client #{client_id}")
+
+    # Find paused sagas for this client
+    paused_sagas = get_paused_sagas_for_client(client_id)
+
+    Logger.info("Found #{length(paused_sagas)} paused sagas for client #{client_id}")
+
+    Enum.each(paused_sagas, fn saga ->
+      case Kawa.Core.SagaRecovery.recover_saga(saga.id) do
+        {:ok, :recovered} ->
+          Logger.info("Successfully resumed saga #{saga.id} for client #{client_id}")
+
+        {:ok, :paused} ->
+          Logger.debug("Saga #{saga.id} remains paused")
+
+        {:error, reason} ->
+          Logger.error(
+            "Failed to resume saga #{saga.id} for client #{client_id}: #{inspect(reason)}"
+          )
+      end
+    end)
+  end
+
+  defp pause_client_sagas(client_id) do
+    Logger.info("Pausing running sagas for disconnected client #{client_id}")
+
+    # Find running sagas for this client
+    running_sagas = get_running_sagas_for_client(client_id)
+
+    Logger.info("Found #{length(running_sagas)} running sagas for client #{client_id}")
+
+    Enum.each(running_sagas, fn saga ->
+      case Kawa.Core.SagaSupervisor.get_saga_pid(saga.id) do
+        {:ok, _pid} ->
+          Kawa.Core.SagaServer.pause(saga.id)
+          Logger.info("Paused saga #{saga.id} for disconnected client #{client_id}")
+
+        {:error, _reason} ->
+          Logger.debug("Saga #{saga.id} not currently running")
+      end
+    end)
+  end
+
+  defp get_paused_sagas_for_client(client_id) do
+    import Ecto.Query
+
+    from(s in Kawa.Schemas.Saga,
+      where: s.client_id == ^client_id and s.status == "paused"
+    )
+    |> Kawa.Repo.all()
+  end
+
+  defp get_running_sagas_for_client(client_id) do
+    import Ecto.Query
+
+    from(s in Kawa.Schemas.Saga,
+      where: s.client_id == ^client_id and s.status in ["running", "compensating"]
+    )
+    |> Kawa.Repo.all()
   end
 end

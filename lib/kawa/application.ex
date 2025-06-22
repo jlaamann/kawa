@@ -26,6 +26,8 @@ defmodule Kawa.Application do
       Kawa.Execution.AsyncStepExecutor,
       # Start the step execution tracker for monitoring
       Kawa.Execution.StepExecutionTracker,
+      # Start saga recovery for handling server restarts
+      Kawa.Core.SagaRecovery,
       # Start to serve requests, typically the last entry
       KawaWeb.Endpoint
     ]
@@ -33,7 +35,21 @@ defmodule Kawa.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Kawa.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    case Supervisor.start_link(children, opts) do
+      {:ok, pid} ->
+        # Trigger saga recovery after all services are started
+        Task.start(fn ->
+          # Give services a moment to fully initialize
+          Process.sleep(1000)
+          Kawa.Core.SagaRecovery.recover_all_sagas()
+        end)
+
+        {:ok, pid}
+
+      error ->
+        error
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
