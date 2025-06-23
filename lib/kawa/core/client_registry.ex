@@ -122,12 +122,9 @@ defmodule Kawa.Core.ClientRegistry do
       "Registered client #{client_id} #{channel_type} channel with PID #{inspect(pid)}"
     )
 
-    # Check for paused sagas and attempt to resume them only for client channels
-    if channel_type == :client do
-      Task.start(fn ->
-        resume_client_sagas(client_id)
-      end)
-    end
+    Task.start(fn ->
+      resume_client_sagas(client_id)
+    end)
 
     {:reply, :ok, new_state}
   end
@@ -159,6 +156,7 @@ defmodule Kawa.Core.ClientRegistry do
         end
 
       pid when is_pid(pid) ->
+        # Legacy format: direct PID mapping, assume it's a client channel
         {:reply, {:ok, pid}, state}
     end
   end

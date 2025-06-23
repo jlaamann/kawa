@@ -162,12 +162,20 @@ defmodule Kawa.Core.SagaServer do
         # Find client and start executing ready steps
         case find_client(state.saga.client_id) do
           {:ok, client_pid} ->
+            Logger.info(
+              "SagaServer: Found client PID #{inspect(client_pid)} for client #{state.saga.client_id}, starting step execution"
+            )
+
             state = %{state | client_pid: client_pid}
             state = execute_ready_steps(state)
             {:reply, :ok, state}
 
-          {:error, :client_not_found} ->
+          {:error, :not_found} ->
             # Pause saga until client connects
+            Logger.warning(
+              "SagaServer: No client channel found for client #{state.saga.client_id}, pausing saga"
+            )
+
             {:ok, paused_saga} = update_saga_status(state.saga, "paused")
             state = %{state | saga: paused_saga}
             record_event(state, "saga_paused", %{reason: "client_not_connected"})
@@ -600,7 +608,12 @@ defmodule Kawa.Core.SagaServer do
         timeout_ms: timeout_ms
       )
 
+    Logger.info(
+      "SagaServer: Sending execute_step message to client PID #{inspect(client_pid)} for saga #{saga_id}, step #{step_id}"
+    )
+
     send(client_pid, {:execute_step, message})
+    Logger.info("SagaServer: Sent execute_step message to client PID #{inspect(client_pid)}")
   end
 
   defp set_step_timeout(step_id, timeout_ms) do
@@ -693,8 +706,22 @@ defmodule Kawa.Core.SagaServer do
   end
 
   defp find_client(client_id) do
-    # Get the client channel PID specifically for step execution communication
-    ClientRegistry.get_client_channel_pid(client_id, :client)
+    # Only look for :client channel now that all functionality is consolidated
+    case ClientRegistry.get_client_channel_pid(client_id, :client) do
+      {:ok, pid} ->
+        Logger.info(
+          "SagaServer: Found :client channel PID #{inspect(pid)} for client #{client_id}"
+        )
+
+        {:ok, pid}
+
+      {:error, reason} = error ->
+        Logger.warning(
+          "SagaServer: Could not find client channel for client #{client_id}: #{inspect(reason)}"
+        )
+
+        error
+    end
   end
 
   defp update_saga_status(saga, new_status) do

@@ -1,7 +1,7 @@
-defmodule KawaWeb.WorkflowExecutionChannelTest do
+defmodule KawaWeb.ClientChannelWorkflowTest do
   use KawaWeb.ChannelCase
 
-  alias KawaWeb.{UserSocket, WorkflowExecutionChannel}
+  alias KawaWeb.{UserSocket, ClientChannel}
   alias Kawa.{Repo}
   alias Kawa.Core.{ClientRegistry}
   alias Kawa.Schemas.{Client, WorkflowDefinition}
@@ -25,8 +25,8 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       assert {:ok, _reply, socket} =
                subscribe_and_join(
                  socket,
-                 WorkflowExecutionChannel,
-                 "workflow_execution:#{client.id}",
+                 ClientChannel,
+                 "client:#{client.id}",
                  %{
                    "api_key" => api_key
                  }
@@ -42,14 +42,14 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       assert {:error, reply} =
                subscribe_and_join(
                  socket,
-                 WorkflowExecutionChannel,
-                 "workflow_execution:#{client.id}",
+                 ClientChannel,
+                 "client:#{client.id}",
                  %{
                    "api_key" => "invalid_key"
                  }
                )
 
-      assert reply.reason == :invalid_api_key
+      assert reply.reason == "authentication_failed"
     end
 
     test "rejects connection without API key", %{client: client} do
@@ -58,12 +58,12 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       assert {:error, reply} =
                subscribe_and_join(
                  socket,
-                 WorkflowExecutionChannel,
-                 "workflow_execution:#{client.id}",
+                 ClientChannel,
+                 "client:#{client.id}",
                  %{}
                )
 
-      assert reply.reason == :missing_api_key
+      assert reply.reason == "api_key_required"
     end
 
     test "rejects connection for non-existent client" do
@@ -73,17 +73,17 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       assert {:error, reply} =
                subscribe_and_join(
                  socket,
-                 WorkflowExecutionChannel,
-                 "workflow_execution:#{fake_client_id}",
+                 ClientChannel,
+                 "client:#{fake_client_id}",
                  %{
                    "api_key" => "any_key"
                  }
                )
 
-      assert reply.reason == :client_not_found
+      assert reply.reason == "authentication_failed"
     end
 
-    test "registers workflow execution channel in ClientRegistry on successful join", %{
+    test "registers client channel in ClientRegistry on successful join", %{
       client: client,
       api_key: api_key
     } do
@@ -92,15 +92,15 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       assert {:ok, _reply, _socket} =
                subscribe_and_join(
                  socket,
-                 WorkflowExecutionChannel,
-                 "workflow_execution:#{client.id}",
+                 ClientChannel,
+                 "client:#{client.id}",
                  %{
                    "api_key" => api_key
                  }
                )
 
-      # Check that the workflow execution channel is registered
-      assert {:ok, _pid} = ClientRegistry.get_client_channel_pid(client.id, :workflow_execution)
+      # Check that the client channel is registered
+      assert {:ok, _pid} = ClientRegistry.get_client_channel_pid(client.id, :client)
     end
   end
 
@@ -109,7 +109,7 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       {:ok, socket} = connect(UserSocket, %{})
 
       {:ok, _reply, socket} =
-        subscribe_and_join(socket, WorkflowExecutionChannel, "workflow_execution:#{client.id}", %{
+        subscribe_and_join(socket, ClientChannel, "client:#{client.id}", %{
           "api_key" => api_key
         })
 
@@ -165,7 +165,7 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       {:ok, socket} = connect(UserSocket, %{})
 
       {:ok, _reply, socket} =
-        subscribe_and_join(socket, WorkflowExecutionChannel, "workflow_execution:#{client.id}", %{
+        subscribe_and_join(socket, ClientChannel, "client:#{client.id}", %{
           "api_key" => api_key
         })
 
