@@ -18,7 +18,7 @@ defmodule KawaWeb.ClientChannel do
         socket = assign(socket, :client, client)
 
         # Register the client connection
-        ClientRegistry.register_client(client.id, self())
+        ClientRegistry.register_client_channel(client.id, self(), :client)
 
         # Update client status to connected
         update_client_status(client, "connected")

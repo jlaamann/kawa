@@ -20,19 +20,20 @@ defmodule KawaWeb.WorkflowExecutionChannel do
   @impl true
   def join("workflow_execution:" <> client_id, payload, socket) do
     Logger.info("Client attempting to join workflow execution channel: #{client_id}")
+    Logger.debug("Join payload: #{inspect(payload)}")
 
     case authenticate_client(client_id, payload) do
       {:ok, client} ->
         # Register client in registry
-        ClientRegistry.register_client(client.id, self())
+        ClientRegistry.register_client_channel(client.id, self(), :workflow_execution)
 
         socket =
           socket
           |> assign(:client_id, client.id)
           |> assign(:client, client)
 
-        Logger.info("Client #{client_id} joined workflow execution channel")
-        {:ok, socket}
+        Logger.info("Client #{client_id} joined workflow execution channel successfully")
+        {:ok, %{status: "connected", channel: "workflow_execution"}, socket}
 
       {:error, reason} ->
         Logger.warning("Client #{client_id} failed to join: #{inspect(reason)}")
@@ -43,41 +44,59 @@ defmodule KawaWeb.WorkflowExecutionChannel do
   @impl true
   def handle_in("trigger_workflow", payload, socket) do
     Logger.info("Received workflow trigger request from client #{socket.assigns.client_id}")
+    Logger.debug("Trigger payload: #{inspect(payload)}")
 
     case validate_trigger_payload(payload) do
       {:ok, validated_payload} ->
-        case execute_workflow(validated_payload, socket.assigns.client) do
-          {:ok, saga} ->
-            # Broadcast successful trigger
-            broadcast(socket, "workflow_triggered", %{
-              saga_id: saga.id,
-              correlation_id: saga.correlation_id,
-              workflow_name: validated_payload.workflow_name,
-              workflow_version: validated_payload.workflow_version,
-              status: "triggered"
-            })
+        # Start workflow execution asynchronously to avoid client timeout
+        task =
+          Task.async(fn ->
+            execute_workflow(validated_payload, socket.assigns.client)
+          end)
 
-            {:reply, {:ok, %{saga_id: saga.id, correlation_id: saga.correlation_id}}, socket}
+        try do
+          # 4 second timeout to keep under client's 5s limit
+          case Task.await(task, 4_000) do
+            {:ok, saga} ->
+              # Broadcast successful trigger
+              broadcast(socket, "workflow_triggered", %{
+                saga_id: saga.id,
+                correlation_id: saga.correlation_id,
+                workflow_name: validated_payload.workflow_name,
+                workflow_version: validated_payload.workflow_version,
+                status: "triggered"
+              })
 
-          {:error, reason} ->
-            Logger.error("Failed to execute workflow: #{inspect(reason)}")
-            # Convert tuple reasons to JSON-serializable format
-            serializable_reason =
-              case reason do
-                {:execution_start_failed, detail} ->
-                  %{type: "execution_start_failed", detail: to_string(detail)}
+              {:reply, {:ok, %{saga_id: saga.id, correlation_id: saga.correlation_id}}, socket}
 
-                {:step_creation_failed, detail} ->
-                  %{type: "step_creation_failed", detail: to_string(detail)}
+            {:error, reason} ->
+              Logger.error("Failed to execute workflow: #{inspect(reason)}")
+              # Convert tuple reasons to JSON-serializable format
+              serializable_reason =
+                case reason do
+                  {:execution_start_failed, detail} ->
+                    %{type: "execution_start_failed", detail: to_string(detail)}
 
-                {:saga_creation_failed, detail} ->
-                  %{type: "saga_creation_failed", detail: to_string(detail)}
+                  {:step_creation_failed, detail} ->
+                    %{type: "step_creation_failed", detail: to_string(detail)}
 
-                other ->
-                  to_string(other)
-              end
+                  {:saga_creation_failed, detail} ->
+                    %{type: "saga_creation_failed", detail: to_string(detail)}
 
-            {:reply, {:error, %{reason: serializable_reason}}, socket}
+                  other ->
+                    to_string(other)
+                end
+
+              {:reply, {:error, %{reason: serializable_reason}}, socket}
+          end
+        catch
+          :exit, {:timeout, _} ->
+            Logger.warning("Workflow execution timed out, responding to client anyway")
+            # Return a partial response to prevent client timeout
+            {:reply,
+             {:ok,
+              %{status: "processing", message: "Workflow execution started but still processing"}},
+             socket}
         end
 
       {:error, errors} ->
@@ -103,6 +122,56 @@ defmodule KawaWeb.WorkflowExecutionChannel do
       :exit, reason ->
         {:reply, {:error, %{reason: reason}}, socket}
     end
+  end
+
+  @impl true
+  def handle_in(event, payload, socket) do
+    Logger.warning("Received unhandled event: #{event} with payload: #{inspect(payload)}")
+    {:reply, {:error, %{reason: "unhandled_event", event: event}}, socket}
+  end
+
+  @impl true
+  def handle_info({:step_result_ack, message}, socket) do
+    Logger.debug(
+      "Received step result ack in WorkflowExecutionChannel - forwarding to ClientChannel"
+    )
+
+    # Forward to client channel since step result acks should go there
+    case ClientRegistry.get_client_channel_pid(socket.assigns.client_id, :client) do
+      {:ok, client_channel_pid} ->
+        send(client_channel_pid, {:step_result_ack, message})
+
+      {:error, :not_found} ->
+        Logger.warning("Could not find client channel to forward step result ack")
+    end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:saga_status_update, message}, socket) do
+    Logger.debug("Received saga status update in WorkflowExecutionChannel")
+    # This channel can handle saga status updates directly
+    push(socket, "saga_status_update", message)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:execute_step, message}, socket) do
+    Logger.debug(
+      "Received execute step in WorkflowExecutionChannel - forwarding to ClientChannel"
+    )
+
+    # Forward to client channel since step execution should go there
+    case ClientRegistry.get_client_channel_pid(socket.assigns.client_id, :client) do
+      {:ok, client_channel_pid} ->
+        send(client_channel_pid, {:execute_step, message})
+
+      {:error, :not_found} ->
+        Logger.warning("Could not find client channel to forward execute step")
+    end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -296,18 +365,33 @@ defmodule KawaWeb.WorkflowExecutionChannel do
   end
 
   defp start_saga_execution(saga_id) do
-    case SagaSupervisor.start_or_resume_saga(saga_id) do
-      :ok ->
-        Logger.info("Started saga execution for saga #{saga_id}")
-        {:ok, saga_id}
+    Logger.info("Starting saga execution for saga #{saga_id}")
 
-      {:ok, _pid} ->
-        Logger.info("Started saga execution for saga #{saga_id}")
-        {:ok, saga_id}
+    # Add timeout protection for saga startup
+    task =
+      Task.async(fn ->
+        SagaSupervisor.start_or_resume_saga(saga_id)
+      end)
 
-      {:error, reason} ->
-        Logger.error("Failed to start saga execution for saga #{saga_id}: #{inspect(reason)}")
-        {:error, reason}
+    try do
+      # 10 second timeout
+      case Task.await(task, 10_000) do
+        :ok ->
+          Logger.info("Started saga execution for saga #{saga_id}")
+          {:ok, saga_id}
+
+        {:ok, _pid} ->
+          Logger.info("Started saga execution for saga #{saga_id}")
+          {:ok, saga_id}
+
+        {:error, reason} ->
+          Logger.error("Failed to start saga execution for saga #{saga_id}: #{inspect(reason)}")
+          {:error, reason}
+      end
+    catch
+      :exit, {:timeout, _} ->
+        Logger.error("Saga execution startup timed out for saga #{saga_id}")
+        {:error, :startup_timeout}
     end
   end
 end

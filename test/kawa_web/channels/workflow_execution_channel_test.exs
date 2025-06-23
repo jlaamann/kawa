@@ -83,7 +83,7 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
       assert reply.reason == :client_not_found
     end
 
-    test "registers client in ClientRegistry on successful join", %{
+    test "registers workflow execution channel in ClientRegistry on successful join", %{
       client: client,
       api_key: api_key
     } do
@@ -99,7 +99,8 @@ defmodule KawaWeb.WorkflowExecutionChannelTest do
                  }
                )
 
-      assert ClientRegistry.client_connected?(client.id)
+      # Check that the workflow execution channel is registered
+      assert {:ok, _pid} = ClientRegistry.get_client_channel_pid(client.id, :workflow_execution)
     end
   end
 

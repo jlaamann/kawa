@@ -22,6 +22,14 @@ defmodule Kawa.Core.ClientRegistry do
   end
 
   @doc """
+  Register a client channel with its WebSocket PID and channel type.
+  """
+  def register_client_channel(client_id, pid, channel_type)
+      when is_binary(client_id) and is_pid(pid) and is_atom(channel_type) do
+    GenServer.call(__MODULE__, {:register_channel, client_id, pid, channel_type})
+  end
+
+  @doc """
   Unregister a client connection.
   """
   def unregister_client(client_id) when is_binary(client_id) do
@@ -33,6 +41,14 @@ defmodule Kawa.Core.ClientRegistry do
   """
   def get_client_pid(client_id) when is_binary(client_id) do
     GenServer.call(__MODULE__, {:get_pid, client_id})
+  end
+
+  @doc """
+  Get the WebSocket PID for a specific client channel type.
+  """
+  def get_client_channel_pid(client_id, channel_type)
+      when is_binary(client_id) and is_atom(channel_type) do
+    GenServer.call(__MODULE__, {:get_channel_pid, client_id, channel_type})
   end
 
   @doc """
@@ -93,6 +109,30 @@ defmodule Kawa.Core.ClientRegistry do
   end
 
   @impl true
+  def handle_call({:register_channel, client_id, pid, channel_type}, _from, state) do
+    # Monitor the client process
+    Process.monitor(pid)
+
+    # Store channels in a nested map: %{client_id => %{channel_type => pid}}
+    client_channels = Map.get(state, client_id, %{})
+    updated_channels = Map.put(client_channels, channel_type, pid)
+    new_state = Map.put(state, client_id, updated_channels)
+
+    Logger.debug(
+      "Registered client #{client_id} #{channel_type} channel with PID #{inspect(pid)}"
+    )
+
+    # Check for paused sagas and attempt to resume them only for client channels
+    if channel_type == :client do
+      Task.start(fn ->
+        resume_client_sagas(client_id)
+      end)
+    end
+
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
   def handle_call({:unregister, client_id}, _from, state) do
     new_state = Map.delete(state, client_id)
     Logger.debug("Unregistered client #{client_id}")
@@ -108,8 +148,36 @@ defmodule Kawa.Core.ClientRegistry do
   @impl true
   def handle_call({:get_pid, client_id}, _from, state) do
     case Map.get(state, client_id) do
-      nil -> {:reply, {:error, :not_found}, state}
-      pid -> {:reply, {:ok, pid}, state}
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      %{} = channels ->
+        # Return only the client channel PID
+        case Map.get(channels, :client) do
+          nil -> {:reply, {:error, :not_found}, state}
+          pid -> {:reply, {:ok, pid}, state}
+        end
+
+      pid when is_pid(pid) ->
+        {:reply, {:ok, pid}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_channel_pid, client_id, channel_type}, _from, state) do
+    case Map.get(state, client_id) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      %{} = channels ->
+        case Map.get(channels, channel_type) do
+          nil -> {:reply, {:error, :not_found}, state}
+          pid -> {:reply, {:ok, pid}, state}
+        end
+
+      pid when is_pid(pid) ->
+        # Old format: only one channel, assume it's the requested type
+        {:reply, {:ok, pid}, state}
     end
   end
 

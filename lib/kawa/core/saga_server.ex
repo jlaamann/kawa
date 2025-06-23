@@ -251,12 +251,13 @@ defmodule Kawa.Core.SagaServer do
               )
 
               # Treat validation failure as step failure
-              validation_error = %{
-                type: "validation_error",
-                message: "Step result validation failed",
-                details: %{validation_errors: validation_errors},
-                retryable: false
-              }
+              validation_error =
+                StepResultValidator.create_error_response(
+                  "validation_error",
+                  "Step result validation failed",
+                  details: %{validation_errors: validation_errors},
+                  retryable: false
+                )
 
               handle_cast({:step_failed, step_id, validation_error}, state)
           end
@@ -427,7 +428,13 @@ defmodule Kawa.Core.SagaServer do
       Logger.warning("Step #{step_id} in saga #{state.saga_id} timed out")
 
       # Treat timeout as step failure
-      error = %{type: "timeout", message: "Step execution timed out"}
+      error =
+        StepResultValidator.create_error_response(
+          "timeout",
+          "Step execution timed out",
+          retryable: true
+        )
+
       handle_cast({:step_failed, step_id, error}, state)
     else
       {:noreply, state}
@@ -550,7 +557,8 @@ defmodule Kawa.Core.SagaServer do
             )
 
             # Set timeout
-            timeout_ref = set_step_timeout(step_id, Map.get(step_definition, "timeout", 60_000))
+            timeout_ms = parse_timeout(Map.get(step_definition, "timeout", 60_000))
+            timeout_ref = set_step_timeout(step_id, timeout_ms)
 
             # Record state transition event
             record_event(state, "step_started", %{step_id: step_id})
@@ -685,7 +693,8 @@ defmodule Kawa.Core.SagaServer do
   end
 
   defp find_client(client_id) do
-    ClientRegistry.get_client_pid(client_id)
+    # Get the client channel PID specifically for step execution communication
+    ClientRegistry.get_client_channel_pid(client_id, :client)
   end
 
   defp update_saga_status(saga, new_status) do
@@ -807,4 +816,37 @@ defmodule Kawa.Core.SagaServer do
       send(client_pid, {:saga_status_update, message})
     end
   end
+
+  defp parse_timeout(timeout) when is_integer(timeout), do: timeout
+
+  defp parse_timeout(timeout) when is_binary(timeout) do
+    timeout_str = String.downcase(timeout)
+
+    cond do
+      String.ends_with?(timeout_str, "s") and String.match?(timeout_str, ~r/^\d+s$/) ->
+        timeout_str
+        |> String.replace("s", "")
+        |> String.to_integer()
+        # Convert seconds to milliseconds
+        |> Kernel.*(1000)
+
+      String.ends_with?(timeout_str, "ms") and String.match?(timeout_str, ~r/^\d+ms$/) ->
+        timeout_str
+        |> String.replace("ms", "")
+        |> String.to_integer()
+
+      String.ends_with?(timeout_str, "m") and String.match?(timeout_str, ~r/^\d+m$/) ->
+        timeout_str
+        |> String.replace("m", "")
+        |> String.to_integer()
+        # Convert minutes to milliseconds
+        |> Kernel.*(60_000)
+
+      true ->
+        Logger.warning("Invalid timeout format: #{timeout}, using default 60s")
+        60_000
+    end
+  end
+
+  defp parse_timeout(_), do: 60_000
 end
