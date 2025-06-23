@@ -5,7 +5,7 @@ defmodule Kawa.Contexts.Sagas do
 
   import Ecto.Query, warn: false
   alias Kawa.Repo
-  alias Kawa.Schemas.{Saga, SagaStep}
+  alias Kawa.Schemas.{Saga, SagaStep, SagaEvent}
 
   @doc """
   Lists sagas with filtering and pagination support.
@@ -107,20 +107,52 @@ defmodule Kawa.Contexts.Sagas do
   end
 
   @doc """
-  Gets a single saga with all its steps and related data.
+  Gets a single saga with all its events and steps data for detailed view.
   """
   def get_saga_with_details(id) do
-    Saga
-    |> where([s], s.id == ^id)
-    |> join(:left, [s], c in assoc(s, :client))
-    |> join(:left, [s], w in assoc(s, :workflow_definition))
-    |> join(:left, [s], steps in assoc(s, :saga_steps))
-    |> preload([s, c, w, steps],
-      client: c,
-      workflow_definition: w,
-      saga_steps: steps
-    )
-    |> Repo.one()
+    saga =
+      Saga
+      |> where([s], s.id == ^id)
+      |> join(:left, [s], c in assoc(s, :client))
+      |> join(:left, [s], w in assoc(s, :workflow_definition))
+      |> preload([s, c, w],
+        client: c,
+        workflow_definition: w
+      )
+      |> Repo.one()
+
+    case saga do
+      nil ->
+        nil
+
+      saga ->
+        # Load events in chronological order (by sequence_number)
+        events =
+          from(e in SagaEvent,
+            where: e.saga_id == ^id,
+            order_by: [asc: e.sequence_number]
+          )
+          |> Repo.all()
+
+        # Load steps for input/output data
+        steps_map =
+          from(s in SagaStep,
+            where: s.saga_id == ^id
+          )
+          |> Repo.all()
+          |> Enum.into(%{}, fn step -> {step.step_id, step} end)
+
+        # Combine events with step data
+        enriched_events =
+          Enum.map(events, fn event ->
+            step_data = Map.get(steps_map, event.step_id, nil)
+            Map.put(event, :step_data, step_data)
+          end)
+
+        saga
+        |> Map.put(:saga_events, enriched_events)
+        |> Map.put(:saga_steps, Map.values(steps_map))
+    end
   end
 
   @doc """
