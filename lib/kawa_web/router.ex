@@ -19,6 +19,7 @@ defmodule KawaWeb.Router do
 
     get "/", PageController, :home
     live "/workflows", WorkflowLive.Index, :index
+    live "/sagas", SagaLive.Index, :index
   end
 
   # API routes

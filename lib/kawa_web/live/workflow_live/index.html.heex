@@ -1,199 +1,247 @@
-<div class="w-full max-w-none">
-  <div class="flex items-center mb-2">
-    <div class="flex-auto">
-      <h1 class="text-base font-bold leading-6 text-gray-900">Workflows</h1>
+<div class="flex h-full">
+  <!-- Sidebar -->
+  <div class="w-64 bg-white border-r border-gray-200 flex-shrink-0">
+    <div class="p-6">
+      <nav class="space-y-2">
+        <.link
+          navigate={~p"/workflows"}
+          class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-100 text-blue-700"
+        >
+          <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+          Workflows
+        </.link>
+
+        <.link
+          navigate={~p"/sagas"}
+          class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+        >
+          <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
+          </svg>
+          Sagas
+        </.link>
+      </nav>
     </div>
   </div>
   
+<!-- Main Content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-900">Workflows</h1>
+      </div>
+    </div>
+    
+<!-- Table Container -->
+    <div class="flex-1 overflow-auto">
+      <div class="px-6 py-4">
+        
 <!-- Workflows Table -->
-  <div class="w-full">
-    <div class="w-full overflow-x-auto">
-      <div class="w-full py-2 align-middle">
-        <.table id="workflows" rows={@workflows}>
-          <:col :let={workflow} label="Name">
-            <div class="text-sm font-medium text-gray-900">{workflow.name}</div>
-          </:col>
+        <div class="w-full">
+          <div class="w-full overflow-x-auto">
+            <div class="w-full py-2 align-middle">
+              <.table id="workflows" rows={@workflows}>
+                <:col :let={workflow} label="Name">
+                  <div class="text-sm font-medium text-gray-900">{workflow.name}</div>
+                </:col>
 
-          <:col :let={workflow} label="Version">
-            <div class="flex items-center space-x-2">
-              <span class="text-sm text-gray-900">{workflow.version}</span>
-              <%= if Map.get(workflow, :version_count, 1) > 1 do %>
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                  +{workflow.version_count - 1} more
-                </span>
+                <:col :let={workflow} label="Version">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-900">{workflow.version}</span>
+                    <%= if Map.get(workflow, :version_count, 1) > 1 do %>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        +{workflow.version_count - 1} more
+                      </span>
+                    <% end %>
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="Client">
+                  <div class="text-sm text-gray-500">
+                    {workflow.client_name || workflow.client_id}
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="In Memory">
+                  <div class="text-sm">
+                    {if workflow.in_memory, do: "Yes", else: "No"}
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="Active">
+                  <div class="text-sm">
+                    {if Map.get(workflow, :has_active_version, workflow.is_active),
+                      do: "Yes",
+                      else: "No"}
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="Steps">
+                  <div class="text-sm text-gray-900">
+                    {if is_map(workflow.definition) and
+                          is_list(Map.get(workflow.definition, "steps")),
+                        do: length(Map.get(workflow.definition, "steps", [])),
+                        else: 0}
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="Usage">
+                  <div class="text-sm text-gray-900">
+                    {workflow.usage_count}
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="Last Used">
+                  <div class="text-sm text-gray-500">
+                    {if workflow.last_used_at,
+                      do: Calendar.strftime(workflow.last_used_at, "%Y-%m-%d %H:%M"),
+                      else: "Never"}
+                  </div>
+                </:col>
+
+                <:col :let={workflow} label="Registered">
+                  <div class="text-sm text-gray-500">
+                    {Calendar.strftime(workflow.registered_at, "%Y-%m-%d %H:%M")}
+                  </div>
+                </:col>
+
+                <:action :let={workflow}>
+                  <.button
+                    type="button"
+                    phx-click="show_workflow"
+                    phx-value-id={workflow.id}
+                    class="text-xs bg-blue-600 hover:bg-blue-500"
+                  >
+                    View
+                  </.button>
+                </:action>
+              </.table>
+            </div>
+          </div>
+        </div>
+        
+<!-- Workflow Detail Modal -->
+        <.modal
+          :if={@show_workflow_modal && @selected_workflow}
+          id="workflow-detail-modal"
+          show={@show_workflow_modal}
+          on_cancel={JS.push("close_workflow_modal")}
+        >
+          <div class="space-y-6">
+            <div class="border-b border-gray-200 pb-4">
+              <h3 class="text-lg font-medium leading-6 text-gray-900">
+                {@selected_workflow.name}
+              </h3>
+              <p class="mt-1 text-sm text-gray-500">
+                Version {@selected_workflow.version} • Client: {@selected_workflow.client_name ||
+                  @selected_workflow.client_id}
+              </p>
+              
+<!-- Version Selection -->
+              <%= if length(@workflow_versions) > 1 do %>
+                <div class="mt-4">
+                  <label class="text-sm font-medium text-gray-700">Version History</label>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <button
+                      :for={version <- @workflow_versions}
+                      type="button"
+                      phx-click="switch_version"
+                      phx-value-version={version.version}
+                      class={[
+                        "inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-200",
+                        if(@selected_version == version.version,
+                          do: "bg-blue-100 text-blue-800 border-blue-300",
+                          else: "bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100"
+                        )
+                      ]}
+                    >
+                      <span>v{version.version}</span>
+                      <%= if version.is_active do %>
+                        <span
+                          class="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-green-400"
+                          title="Active version"
+                        >
+                        </span>
+                      <% end %>
+                    </button>
+                  </div>
+                </div>
               <% end %>
             </div>
-          </:col>
 
-          <:col :let={workflow} label="Client">
-            <div class="text-sm text-gray-500">
-              {workflow.client_name || workflow.client_id}
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-3">
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">In Memory</dt>
+                  <dd class="mt-1 text-sm text-gray-900">
+                    {if @selected_workflow.in_memory, do: "Yes", else: "No"}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Active</dt>
+                  <dd class="mt-1 text-sm text-gray-900">
+                    {if @selected_workflow.is_active, do: "Yes", else: "No"}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Usage Count</dt>
+                  <dd class="mt-1 text-sm text-gray-900">{@selected_workflow.usage_count}</dd>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Source</dt>
+                  <dd class="mt-1 text-sm text-gray-900">{@selected_workflow.source}</dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Registered At</dt>
+                  <dd class="mt-1 text-sm text-gray-900">
+                    {Calendar.strftime(@selected_workflow.registered_at, "%Y-%m-%d %H:%M")}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Last Used</dt>
+                  <dd class="mt-1 text-sm text-gray-900">
+                    {if @selected_workflow.last_used_at,
+                      do: Calendar.strftime(@selected_workflow.last_used_at, "%Y-%m-%d %H:%M"),
+                      else: "Never"}
+                  </dd>
+                </div>
+              </div>
             </div>
-          </:col>
 
-          <:col :let={workflow} label="In Memory">
-            <div class="text-sm">
-              {if workflow.in_memory, do: "Yes", else: "No"}
+            <div>
+              <dt class="text-sm font-medium text-gray-500 mb-3">Workflow Definition</dt>
+              <dd>
+                {workflow_definition_display(%{definition: @selected_workflow.definition})}
+              </dd>
             </div>
-          </:col>
 
-          <:col :let={workflow} label="Active">
-            <div class="text-sm">
-              {if Map.get(workflow, :has_active_version, workflow.is_active),
-                do: "Yes",
-                else: "No"}
-            </div>
-          </:col>
-
-          <:col :let={workflow} label="Steps">
-            <div class="text-sm text-gray-900">
-              {if is_map(workflow.definition) and is_list(Map.get(workflow.definition, "steps")),
-                do: length(Map.get(workflow.definition, "steps", [])),
-                else: 0}
-            </div>
-          </:col>
-
-          <:col :let={workflow} label="Usage">
-            <div class="text-sm text-gray-900">
-              {workflow.usage_count}
-            </div>
-          </:col>
-
-          <:col :let={workflow} label="Last Used">
-            <div class="text-sm text-gray-500">
-              {if workflow.last_used_at,
-                do: Calendar.strftime(workflow.last_used_at, "%Y-%m-%d %H:%M"),
-                else: "Never"}
-            </div>
-          </:col>
-
-          <:col :let={workflow} label="Registered">
-            <div class="text-sm text-gray-500">
-              {Calendar.strftime(workflow.registered_at, "%Y-%m-%d %H:%M")}
-            </div>
-          </:col>
-
-          <:action :let={workflow}>
-            <.button
-              type="button"
-              phx-click="show_workflow"
-              phx-value-id={workflow.id}
-              class="text-xs bg-blue-600 hover:bg-blue-500"
-            >
-              View
-            </.button>
-          </:action>
-        </.table>
+            <%= if not Enum.empty?(@selected_workflow.metadata) do %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500 mb-3">Metadata</dt>
+                <dd class="bg-gray-50 rounded-lg p-3">
+                  <pre class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_workflow.metadata, pretty: true) %></pre>
+                </dd>
+              </div>
+            <% end %>
+          </div>
+        </.modal>
       </div>
     </div>
   </div>
-  
-<!-- Workflow Detail Modal -->
-  <.modal
-    :if={@show_workflow_modal && @selected_workflow}
-    id="workflow-detail-modal"
-    show={@show_workflow_modal}
-    on_cancel={JS.push("close_workflow_modal")}
-  >
-    <div class="space-y-6">
-      <div class="border-b border-gray-200 pb-4">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">
-          {@selected_workflow.name}
-        </h3>
-        <p class="mt-1 text-sm text-gray-500">
-          Version {@selected_workflow.version} • Client: {@selected_workflow.client_name ||
-            @selected_workflow.client_id}
-        </p>
-        
-<!-- Version Selection -->
-        <%= if length(@workflow_versions) > 1 do %>
-          <div class="mt-4">
-            <label class="text-sm font-medium text-gray-700">Version History</label>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <button
-                :for={version <- @workflow_versions}
-                type="button"
-                phx-click="switch_version"
-                phx-value-version={version.version}
-                class={[
-                  "inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-200",
-                  if(@selected_version == version.version,
-                    do: "bg-blue-100 text-blue-800 border-blue-300",
-                    else: "bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100"
-                  )
-                ]}
-              >
-                <span>v{version.version}</span>
-                <%= if version.is_active do %>
-                  <span
-                    class="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-green-400"
-                    title="Active version"
-                  >
-                  </span>
-                <% end %>
-              </button>
-            </div>
-          </div>
-        <% end %>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-3">
-          <div>
-            <dt class="text-sm font-medium text-gray-500">In Memory</dt>
-            <dd class="mt-1 text-sm text-gray-900">
-              {if @selected_workflow.in_memory, do: "Yes", else: "No"}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500">Active</dt>
-            <dd class="mt-1 text-sm text-gray-900">
-              {if @selected_workflow.is_active, do: "Yes", else: "No"}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500">Usage Count</dt>
-            <dd class="mt-1 text-sm text-gray-900">{@selected_workflow.usage_count}</dd>
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <dt class="text-sm font-medium text-gray-500">Source</dt>
-            <dd class="mt-1 text-sm text-gray-900">{@selected_workflow.source}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500">Registered At</dt>
-            <dd class="mt-1 text-sm text-gray-900">
-              {Calendar.strftime(@selected_workflow.registered_at, "%Y-%m-%d %H:%M")}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500">Last Used</dt>
-            <dd class="mt-1 text-sm text-gray-900">
-              {if @selected_workflow.last_used_at,
-                do: Calendar.strftime(@selected_workflow.last_used_at, "%Y-%m-%d %H:%M"),
-                else: "Never"}
-            </dd>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <dt class="text-sm font-medium text-gray-500 mb-3">Workflow Definition</dt>
-        <dd>
-          {workflow_definition_display(%{definition: @selected_workflow.definition})}
-        </dd>
-      </div>
-
-      <%= if not Enum.empty?(@selected_workflow.metadata) do %>
-        <div>
-          <dt class="text-sm font-medium text-gray-500 mb-3">Metadata</dt>
-          <dd class="bg-gray-50 rounded-lg p-3">
-            <pre class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_workflow.metadata, pretty: true) %></pre>
-          </dd>
-        </div>
-      <% end %>
-    </div>
-  </.modal>
 </div>
