@@ -18,7 +18,7 @@ defmodule KawaWeb.ClientChannel do
         socket = assign(socket, :client, client)
 
         # Register the client connection
-        ClientRegistry.register_client(client.id, self())
+        ClientRegistry.register_client_channel(client.id, self(), :client)
 
         # Update client status to connected
         update_client_status(client, "connected")
@@ -362,8 +362,21 @@ defmodule KawaWeb.ClientChannel do
         })
         |> Repo.insert()
 
-      _existing_workflow ->
-        {:error, :version_already_exists}
+      existing_workflow ->
+        # Check if the definition is actually different
+        existing_checksum = existing_workflow.definition_checksum
+
+        if existing_checksum == checksum do
+          # Exact same workflow - treat as success on reconnection
+          Logger.info(
+            "Client #{client.name} re-registering identical workflow: #{workflow_name} v#{version}"
+          )
+
+          {:ok, existing_workflow}
+        else
+          # Different definition with same version - this is an error
+          {:error, :version_already_exists}
+        end
     end
   end
 end
