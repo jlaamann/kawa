@@ -3,51 +3,75 @@
   <div class="w-64 bg-white border-r border-gray-200 flex-shrink-0">
     <div class="p-6">
       <nav class="space-y-2">
-        <.link navigate={~p"/workflows"}
-          class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+        <.link
+          navigate={~p"/workflows"}
+          class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+        >
           <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
           </svg>
           Workflows
         </.link>
 
-        <.link navigate={~p"/sagas"}
-          class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-100 text-blue-700">
+        <.link
+          navigate={~p"/sagas"}
+          class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-100 text-blue-700"
+        >
           <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
           </svg>
           Sagas
         </.link>
       </nav>
     </div>
   </div>
-
-  <!-- Main Content -->
+  
+<!-- Main Content -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <!-- Header -->
     <div class="bg-white border-b border-gray-200 px-6 py-4">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">Sagas</h1>
         <div class="flex space-x-3">
-          <.button type="button" phx-click="refresh" class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
+          <.button
+            type="button"
+            phx-click="refresh"
+            class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+          >
             <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
             Refresh
           </.button>
         </div>
       </div>
     </div>
-
-    <!-- Filters -->
+    
+<!-- Filters -->
     <div class="bg-gray-50 border-b border-gray-200 px-6 py-4">
       <form phx-change="filter" phx-submit="filter" class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <select name="filters[status]" value={@filters["status"]}
-            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+          <select
+            name="filters[status]"
+            value={@filters["status"]}
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          >
             <option value="">All Statuses</option>
             <option value="pending">Pending</option>
             <option value="running">Running</option>
@@ -61,204 +85,282 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Workflow</label>
-          <input type="text" name="filters[workflow_name]" value={@filters["workflow_name"]}
+          <input
+            type="text"
+            name="filters[workflow_name]"
+            value={@filters["workflow_name"]}
             placeholder="Workflow name..."
-            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Correlation ID</label>
-          <input type="text" name="filters[correlation_id]" value={@filters["correlation_id"]}
+          <input
+            type="text"
+            name="filters[correlation_id]"
+            value={@filters["correlation_id"]}
             placeholder="Correlation ID..."
-            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          />
         </div>
 
         <div class="flex items-end">
-          <.button type="button" phx-click="clear_filters"
-            class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
+          <.button
+            type="button"
+            phx-click="clear_filters"
+            class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+          >
             Clear Filters
           </.button>
         </div>
       </form>
     </div>
-
-    <!-- Table Container -->
+    
+<!-- Table Container -->
     <div class="flex-1 overflow-auto">
       <div class="px-6 py-4">
         <%= if @loading do %>
           <div class="flex justify-center py-12">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-          <% else %>
-            <!-- Sagas Table -->
-            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      phx-click="sort" phx-value-field="correlation_id">
-                      <div class="flex items-center space-x-1">
-                        <span>Correlation ID</span>
-                        <span class="text-blue-500">
-                          {sort_indicator(:correlation_id, @sort_by, @sort_order)}
-                        </span>
-                      </div>
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      phx-click="sort" phx-value-field="status">
-                      <div class="flex items-center space-x-1">
-                        <span>Status</span>
-                        <span class="text-blue-500">
-                          {sort_indicator(:status, @sort_by, @sort_order)}
-                        </span>
-                      </div>
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Workflow
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Client
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      phx-click="sort" phx-value-field="started_at">
-                      <div class="flex items-center space-x-1">
-                        <span>Started</span>
-                        <span class="text-blue-500">
-                          {sort_indicator(:started_at, @sort_by, @sort_order)}
-                        </span>
-                      </div>
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      phx-click="sort" phx-value-field="completed_at">
-                      <div class="flex items-center space-x-1">
-                        <span>Completed</span>
-                        <span class="text-blue-500">
-                          {sort_indicator(:completed_at, @sort_by, @sort_order)}
-                        </span>
-                      </div>
-                    </th>
-                    <th scope="col" class="relative px-6 py-3">
-                      <span class="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr :for={saga <- @sagas} class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {String.slice(saga.correlation_id, 0, 20)}<%= if String.length(saga.correlation_id)> 20, do: "..."
-                        %>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={"inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                        #{status_badge_class(saga.status)}"}>
-                        {String.capitalize(saga.status)}
+        <% else %>
+          <!-- Sagas Table -->
+          <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            <table class="min-w-full divide-y divide-gray-300">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    phx-click="sort"
+                    phx-value-field="correlation_id"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Correlation ID</span>
+                      <span class="text-blue-500">
+                        {sort_indicator(:correlation_id, @sort_by, @sort_order)}
                       </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {if saga.workflow_definition, do: saga.workflow_definition.name, else: "—"}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {if saga.client, do: saga.client.name, else: "—"}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {format_datetime(saga.started_at)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {format_datetime(saga.completed_at)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <.button type="button" phx-click="show_saga" phx-value-id={saga.id}
-                        class="text-xs bg-blue-600 hover:bg-blue-500">
-                        View
-                      </.button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Pagination -->
-            <%= if @meta.total_pages> 1 do %>
-              <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
-                <div class="flex-1 flex justify-between sm:hidden">
-                  <%= if @meta.has_prev do %>
-                    <.button type="button" phx-click="paginate" phx-value-page={@meta.page - 1}
-                      class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
-                      Previous
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    phx-click="sort"
+                    phx-value-field="status"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Status</span>
+                      <span class="text-blue-500">
+                        {sort_indicator(:status, @sort_by, @sort_order)}
+                      </span>
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Workflow
+                  </th>
+                  <th
+                    scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Client
+                  </th>
+                  <th
+                    scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    phx-click="sort"
+                    phx-value-field="started_at"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Started</span>
+                      <span class="text-blue-500">
+                        {sort_indicator(:started_at, @sort_by, @sort_order)}
+                      </span>
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    phx-click="sort"
+                    phx-value-field="completed_at"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Completed</span>
+                      <span class="text-blue-500">
+                        {sort_indicator(:completed_at, @sort_by, @sort_order)}
+                      </span>
+                    </div>
+                  </th>
+                  <th scope="col" class="relative px-6 py-3">
+                    <span class="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr :for={saga <- @sagas} class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {String.slice(saga.correlation_id, 0, 20)}{if String.length(
+                                                                    saga.correlation_id
+                                                                  ) > 20,
+                                                                  do: "..."}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class={"inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                        #{status_badge_class(saga.status)}"}>
+                      {String.capitalize(saga.status)}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {if saga.workflow_definition, do: saga.workflow_definition.name, else: "—"}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {if saga.client, do: saga.client.name, else: "—"}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {format_datetime(saga.started_at)}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {format_datetime(saga.completed_at)}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <.button
+                      type="button"
+                      phx-click="show_saga"
+                      phx-value-id={saga.id}
+                      class="text-xs bg-blue-600 hover:bg-blue-500"
+                    >
+                      View
                     </.button>
-                    <% end %>
-                      <%= if @meta.has_next do %>
-                        <.button type="button" phx-click="paginate" phx-value-page={@meta.page + 1}
-                          class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
-                          Next
-                        </.button>
-                        <% end %>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+<!-- Pagination -->
+          <%= if @meta.total_pages> 1 do %>
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
+              <div class="flex-1 flex justify-between sm:hidden">
+                <%= if @meta.has_prev do %>
+                  <.button
+                    type="button"
+                    phx-click="paginate"
+                    phx-value-page={@meta.page - 1}
+                    class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  >
+                    Previous
+                  </.button>
+                <% end %>
+                <%= if @meta.has_next do %>
+                  <.button
+                    type="button"
+                    phx-click="paginate"
+                    phx-value-page={@meta.page + 1}
+                    class="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  >
+                    Next
+                  </.button>
+                <% end %>
+              </div>
+              <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm text-gray-700">
+                    Showing
+                    <span class="font-medium">{(@meta.page - 1) * @meta.page_size + 1}</span>
+                    to
+                    <span class="font-medium">
+                      {min(@meta.page * @meta.page_size, @meta.total_count)}
+                    </span>
+                    of <span class="font-medium">{@meta.total_count}</span>
+                    results
+                  </p>
                 </div>
-                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      Showing
-                      <span class="font-medium">{(@meta.page - 1) * @meta.page_size + 1}</span>
-                      to
-                      <span class="font-medium">{min(@meta.page * @meta.page_size, @meta.total_count)}</span>
-                      of
-                      <span class="font-medium">{@meta.total_count}</span>
-                      results
-                    </p>
-                  </div>
-                  <div>
-                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <%= if @meta.has_prev do %>
-                        <button type="button" phx-click="paginate" phx-value-page={@meta.page - 1}
-                          class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                          <span class="sr-only">Previous</span>
-                          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd"
-                              d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                              clip-rule="evenodd" />
-                          </svg>
-                        </button>
-                        <% end %>
+                <div>
+                  <nav
+                    class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                    aria-label="Pagination"
+                  >
+                    <%= if @meta.has_prev do %>
+                      <button
+                        type="button"
+                        phx-click="paginate"
+                        phx-value-page={@meta.page - 1}
+                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      >
+                        <span class="sr-only">Previous</span>
+                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fill-rule="evenodd"
+                            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    <% end %>
 
-                          <button :for={page <- Enum.to_list(max(1, @meta.page - 2)..min(@meta.total_pages, @meta.page +
-                            2))} type="button" phx-click="paginate" phx-value-page={page} class={ if page==@meta.page
-                            do "z-10 bg-blue-50 border-blue-500 text-blue-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-                            else "bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-                            end }>
-                            {page}
-                          </button>
+                    <button
+                      :for={
+                        page <-
+                          Enum.to_list(
+                            max(1, @meta.page - 2)..min(
+                              @meta.total_pages,
+                              @meta.page +
+                                2
+                            )
+                          )
+                      }
+                      type="button"
+                      phx-click="paginate"
+                      phx-value-page={page}
+                      class={
+                        if page == @meta.page do
+                          "z-10 bg-blue-50 border-blue-500 text-blue-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+                        else
+                          "bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+                        end
+                      }
+                    >
+                      {page}
+                    </button>
 
-                          <%= if @meta.has_next do %>
-                            <button type="button" phx-click="paginate" phx-value-page={@meta.page + 1}
-                              class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                              <span class="sr-only">Next</span>
-                              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                                  clip-rule="evenodd" />
-                              </svg>
-                            </button>
-                            <% end %>
-                    </nav>
-                  </div>
+                    <%= if @meta.has_next do %>
+                      <button
+                        type="button"
+                        phx-click="paginate"
+                        phx-value-page={@meta.page + 1}
+                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      >
+                        <span class="sr-only">Next</span>
+                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fill-rule="evenodd"
+                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    <% end %>
+                  </nav>
                 </div>
               </div>
-              <% end %>
-                <% end %>
+            </div>
+          <% end %>
+        <% end %>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Saga Detail Modal -->
-<.modal :if={@show_saga_modal && @selected_saga} id="saga-detail-modal" show={@show_saga_modal}
-  on_cancel={JS.push("close_saga_modal")}>
+<.modal
+  :if={@show_saga_modal && @selected_saga}
+  id="saga-detail-modal"
+  show={@show_saga_modal}
+  on_cancel={JS.push("close_saga_modal")}
+>
   <div class="space-y-6">
     <div class="border-b border-gray-200 pb-4">
       <h3 class="text-lg font-medium leading-6 text-gray-900">
@@ -283,7 +385,9 @@
         <div>
           <dt class="text-sm font-medium text-gray-500">Workflow</dt>
           <dd class="mt-1 text-sm text-gray-900">
-            {if @selected_saga.workflow_definition, do: @selected_saga.workflow_definition.name, else: "—"}
+            {if @selected_saga.workflow_definition,
+              do: @selected_saga.workflow_definition.name,
+              else: "—"}
           </dd>
         </div>
         <div>
@@ -315,18 +419,20 @@
         </div>
       </div>
     </div>
-
-    <!-- Event Timeline -->
+    
+<!-- Event Timeline -->
     <%= if @selected_saga.saga_events && length(@selected_saga.saga_events)> 0 do %>
       <div>
         <dt class="text-sm font-medium text-gray-500 mb-3">Event Timeline</dt>
         <dd>
           <div class="space-y-3">
-            <div :for={{event, _index} <- Enum.with_index(@selected_saga.saga_events)} class="border rounded-lg p-4">
+            <div
+              :for={{event, _index} <- Enum.with_index(@selected_saga.saga_events)}
+              class="border rounded-lg p-4"
+            >
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                  <span
-                    class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-blue-600 bg-blue-100 rounded-full">
+                  <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-blue-600 bg-blue-100 rounded-full">
                     {event.sequence_number}
                   </span>
                   <div>
@@ -335,7 +441,7 @@
                     </span>
                     <%= if event.step_id do %>
                       <span class="text-xs text-gray-500 ml-2">({event.step_id})</span>
-                      <% end %>
+                    <% end %>
                   </div>
                 </div>
                 <span class="text-xs text-gray-500">
@@ -348,84 +454,84 @@
                   <span>Duration:</span>
                   <span class="ml-1">{event.duration_ms}ms</span>
                 </div>
-                <% end %>
-
-                  <!-- Event Payload -->
-                  <%= if event.payload && map_size(event.payload)> 0 do %>
-                    <div class="mt-2">
-                      <details class="text-xs">
-                        <summary class="cursor-pointer text-purple-600 hover:text-purple-800">Event Data</summary>
-                        <pre
-                          class="mt-1 text-gray-600 whitespace-pre-wrap bg-purple-50 p-2 rounded"><%= Jason.encode!(event.payload, pretty: true) %></pre>
-                      </details>
-                    </div>
-                    <% end %>
-
-                      <!-- Step Data (contextual based on event type) -->
-                      <%= if event.step_data do %>
-                        <!-- Step Input - only show for *_started events -->
-                        <%= if String.ends_with?(event.event_type, "_started" ) && event.step_data.input &&
+              <% end %>
+              
+<!-- Event Payload -->
+              <%= if event.payload && map_size(event.payload)> 0 do %>
+                <div class="mt-2">
+                  <details class="text-xs">
+                    <summary class="cursor-pointer text-purple-600 hover:text-purple-800">
+                      Event Data
+                    </summary>
+                    <pre class="mt-1 text-gray-600 whitespace-pre-wrap bg-purple-50 p-2 rounded"><%= Jason.encode!(event.payload, pretty: true) %></pre>
+                  </details>
+                </div>
+              <% end %>
+              
+<!-- Step Data (contextual based on event type) -->
+              <%= if event.step_data do %>
+                <!-- Step Input - only show for *_started events -->
+                <%= if String.ends_with?(event.event_type, "_started" ) && event.step_data.input &&
                           map_size(event.step_data.input)> 0 do %>
-                          <div class="mt-2">
-                            <details class="text-xs">
-                              <summary class="cursor-pointer text-blue-600 hover:text-blue-800">Step Input</summary>
-                              <pre
-                                class="mt-1 text-gray-600 whitespace-pre-wrap bg-blue-50 p-2 rounded"><%= Jason.encode!(event.step_data.input, pretty: true) %></pre>
-                            </details>
-                          </div>
-                          <% end %>
-
-                            <!-- Step Output - only show for *_completed events -->
-                            <%= if String.ends_with?(event.event_type, "_completed" ) && event.step_data.output &&
+                  <div class="mt-2">
+                    <details class="text-xs">
+                      <summary class="cursor-pointer text-blue-600 hover:text-blue-800">
+                        Step Input
+                      </summary>
+                      <pre class="mt-1 text-gray-600 whitespace-pre-wrap bg-blue-50 p-2 rounded"><%= Jason.encode!(event.step_data.input, pretty: true) %></pre>
+                    </details>
+                  </div>
+                <% end %>
+                
+<!-- Step Output - only show for *_completed events -->
+                <%= if String.ends_with?(event.event_type, "_completed" ) && event.step_data.output &&
                               map_size(event.step_data.output)> 0 do %>
-                              <div class="mt-2">
-                                <details class="text-xs">
-                                  <summary class="cursor-pointer text-green-600 hover:text-green-800">Step Output
-                                  </summary>
-                                  <pre
-                                    class="mt-1 text-gray-600 whitespace-pre-wrap bg-green-50 p-2 rounded"><%= Jason.encode!(event.step_data.output, pretty: true) %></pre>
-                                </details>
-                              </div>
-                              <% end %>
-
-                                <!-- Error Details - only show for *_failed events -->
-                                <%= if String.ends_with?(event.event_type, "_failed" ) && event.step_data.error_details
+                  <div class="mt-2">
+                    <details class="text-xs">
+                      <summary class="cursor-pointer text-green-600 hover:text-green-800">
+                        Step Output
+                      </summary>
+                      <pre class="mt-1 text-gray-600 whitespace-pre-wrap bg-green-50 p-2 rounded"><%= Jason.encode!(event.step_data.output, pretty: true) %></pre>
+                    </details>
+                  </div>
+                <% end %>
+                
+<!-- Error Details - only show for *_failed events -->
+                <%= if String.ends_with?(event.event_type, "_failed" ) && event.step_data.error_details
                                   && map_size(event.step_data.error_details)> 0 do %>
-                                  <div class="mt-2">
-                                    <details class="text-xs">
-                                      <summary class="cursor-pointer text-red-600 hover:text-red-800">Error Details
-                                      </summary>
-                                      <pre
-                                        class="mt-1 text-gray-600 whitespace-pre-wrap bg-red-50 p-2 rounded"><%= Jason.encode!(event.step_data.error_details, pretty: true) %></pre>
-                                    </details>
-                                  </div>
-                                  <% end %>
-                                    <% end %>
+                  <div class="mt-2">
+                    <details class="text-xs">
+                      <summary class="cursor-pointer text-red-600 hover:text-red-800">
+                        Error Details
+                      </summary>
+                      <pre class="mt-1 text-gray-600 whitespace-pre-wrap bg-red-50 p-2 rounded"><%= Jason.encode!(event.step_data.error_details, pretty: true) %></pre>
+                    </details>
+                  </div>
+                <% end %>
+              <% end %>
             </div>
           </div>
         </dd>
       </div>
-      <% end %>
+    <% end %>
+    
+<!-- Input & Context -->
+    <%= if @selected_saga.input && map_size(@selected_saga.input)> 0 do %>
+      <div>
+        <dt class="text-sm font-medium text-gray-500 mb-3">Input</dt>
+        <dd class="bg-gray-50 rounded-lg p-3">
+          <pre class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_saga.input, pretty: true) %></pre>
+        </dd>
+      </div>
+    <% end %>
 
-        <!-- Input & Context -->
-        <%= if @selected_saga.input && map_size(@selected_saga.input)> 0 do %>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 mb-3">Input</dt>
-            <dd class="bg-gray-50 rounded-lg p-3">
-              <pre
-                class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_saga.input, pretty: true) %></pre>
-            </dd>
-          </div>
-          <% end %>
-
-            <%= if @selected_saga.context && map_size(@selected_saga.context)> 0 do %>
-              <div>
-                <dt class="text-sm font-medium text-gray-500 mb-3">Context</dt>
-                <dd class="bg-gray-50 rounded-lg p-3">
-                  <pre
-                    class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_saga.context, pretty: true) %></pre>
-                </dd>
-              </div>
-              <% end %>
+    <%= if @selected_saga.context && map_size(@selected_saga.context)> 0 do %>
+      <div>
+        <dt class="text-sm font-medium text-gray-500 mb-3">Context</dt>
+        <dd class="bg-gray-50 rounded-lg p-3">
+          <pre class="text-xs text-gray-800 whitespace-pre-wrap"><%= Jason.encode!(@selected_saga.context, pretty: true) %></pre>
+        </dd>
+      </div>
+    <% end %>
   </div>
 </.modal>

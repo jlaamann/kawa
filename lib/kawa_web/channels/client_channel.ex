@@ -352,6 +352,8 @@ defmodule KawaWeb.ClientChannel do
       "Sending compensation request to client #{client.name} for step #{message.step_id}"
     )
 
+    Logger.debug("Compensation request message: #{inspect(message)}")
+
     # Send compensation request to client via WebSocket
     push(socket, "compensate_step", message)
 
@@ -443,6 +445,8 @@ defmodule KawaWeb.ClientChannel do
       Logger.info(
         "Client #{client.name} reported #{result_type} for saga #{saga_id}, step #{step_id}"
       )
+
+      Logger.debug("Compensation result payload: #{inspect(payload)}")
 
       # Extract result or error based on message type
       result_or_error =
