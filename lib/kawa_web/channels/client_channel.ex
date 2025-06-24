@@ -327,6 +327,15 @@ defmodule KawaWeb.ClientChannel do
       "Client #{client.name} reported compensation result (legacy format) for saga #{saga_id}, step #{step_id}"
     )
 
+    # Create compensation response event for legacy format
+    legacy_result_type =
+      case status do
+        "success" -> "compensation_completed"
+        _ -> "compensation_failed"
+      end
+
+    create_compensation_response_event(saga_id, step_id, legacy_result_type, result)
+
     # Forward compensation result to CompensationEngine
     compensation_result_message =
       case status do
@@ -455,6 +464,9 @@ defmodule KawaWeb.ClientChannel do
           "compensation_failed" -> Map.get(payload, "error", %{})
         end
 
+      # Create compensation response event before forwarding
+      create_compensation_response_event(saga_id, step_id, result_type, result_or_error)
+
       # Forward compensation result to CompensationEngine
       compensation_result_message =
         case result_type do
@@ -483,6 +495,28 @@ defmodule KawaWeb.ClientChannel do
       last_heartbeat_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
     |> Repo.update()
+  end
+
+  defp create_compensation_response_event(saga_id, step_id, result_type, result_or_error) do
+    event_type =
+      case result_type do
+        "compensation_completed" -> "step_compensation_completed"
+        "compensation_failed" -> "step_compensation_failed"
+      end
+
+    event_data = %{
+      saga_id: saga_id,
+      step_id: step_id,
+      event_type: event_type,
+      payload: %{
+        compensation_result: result_or_error,
+        received_at: DateTime.utc_now() |> DateTime.to_iso8601()
+      },
+      occurred_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    }
+
+    # Use atomic sequence generation to avoid race conditions
+    Kawa.Utils.SequenceGenerator.create_saga_event_with_sequence(event_data)
   end
 
   defp handle_status_data_format(payload, socket) do

@@ -34,7 +34,7 @@ defmodule Kawa.Execution.CompensationEngine do
   alias Kawa.Execution.StepDependencyResolver
   alias Kawa.Execution.StepStateMachine
   alias Kawa.Execution.CompensationClient
-  alias Kawa.Schemas.{Saga, SagaStep, SagaEvent}
+  alias Kawa.Schemas.{Saga, SagaStep}
   alias Kawa.Repo
 
   import Ecto.Query
@@ -282,6 +282,9 @@ defmodule Kawa.Execution.CompensationEngine do
     # Get the saga to provide context for compensation
     case get_saga_with_client(step.saga_id) do
       {:ok, saga} ->
+        # Create event when sending compensation request
+        create_compensation_event(step, "compensation_requested")
+
         # Pass step with additional client context
         step_with_context = Map.put(step, :client_id, saga.client_id)
         CompensationClient.compensate_step(step.saga_id, step_with_context)
@@ -333,7 +336,6 @@ defmodule Kawa.Execution.CompensationEngine do
       saga_id: step.saga_id,
       step_id: step.step_id,
       event_type: "step_#{event_type}",
-      sequence_number: get_next_sequence_number(step.saga_id),
       payload: %{
         step_status: event_type,
         details: details
@@ -341,9 +343,8 @@ defmodule Kawa.Execution.CompensationEngine do
       occurred_at: DateTime.utc_now() |> DateTime.truncate(:second)
     }
 
-    %SagaEvent{}
-    |> SagaEvent.changeset(event_data)
-    |> Repo.insert()
+    # Use atomic sequence generation to avoid race conditions
+    Kawa.Utils.SequenceGenerator.create_saga_event_with_sequence(event_data)
   end
 
   defp finalize_compensation(saga, results) do
@@ -379,7 +380,6 @@ defmodule Kawa.Execution.CompensationEngine do
     event_data = %{
       saga_id: saga.id,
       event_type: "saga_compensation_#{event_type}",
-      sequence_number: get_next_sequence_number(saga.id),
       payload: %{
         final_status: event_type,
         details: details
@@ -387,9 +387,8 @@ defmodule Kawa.Execution.CompensationEngine do
       occurred_at: DateTime.utc_now() |> DateTime.truncate(:second)
     }
 
-    %SagaEvent{}
-    |> SagaEvent.changeset(event_data)
-    |> Repo.insert()
+    # Use atomic sequence generation to avoid race conditions
+    Kawa.Utils.SequenceGenerator.create_saga_event_with_sequence(event_data)
   end
 
   defp merge_results(acc, new_results) do
@@ -409,11 +408,6 @@ defmodule Kawa.Execution.CompensationEngine do
   end
 
   defp calculate_progress(_, _), do: 0.0
-
-  defp get_next_sequence_number(_saga_id) do
-    # Use timestamp in microseconds to ensure uniqueness across concurrent operations
-    DateTime.utc_now() |> DateTime.to_unix(:microsecond)
-  end
 
   defp get_saga_with_client(saga_id) do
     case Repo.get(Saga, saga_id) do
