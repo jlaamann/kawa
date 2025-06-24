@@ -287,7 +287,10 @@ defmodule Kawa.Validation.StepResultValidator do
   end
 
   defp validate_data_types(result, context) do
-    type_errors = validate_field_types(result, Map.get(context.schema, "properties", %{}))
+    properties =
+      if is_map(context.schema), do: Map.get(context.schema, "properties", %{}), else: %{}
+
+    type_errors = validate_field_types(result, properties)
     %{context | errors: type_errors ++ context.errors}
   end
 
@@ -320,8 +323,12 @@ defmodule Kawa.Validation.StepResultValidator do
     create_error(type, field, "Schema validation failed for field #{field}")
   end
 
-  defp get_business_rules(schema) do
+  defp get_business_rules(schema) when is_map(schema) do
     Map.get(schema, "business_rules", [])
+  end
+
+  defp get_business_rules(_schema) do
+    []
   end
 
   defp apply_business_rule(rule, result, _context) do
@@ -440,7 +447,7 @@ defmodule Kawa.Validation.StepResultValidator do
     [create_error(:invalid_structure, nil, "Context must be a map") | errors]
   end
 
-  defp remove_sensitive_fields(result, sanitization_rules) do
+  defp remove_sensitive_fields(result, sanitization_rules) when is_map(result) do
     sensitive_patterns =
       Keyword.get(
         sanitization_rules,
@@ -457,6 +464,11 @@ defmodule Kawa.Validation.StepResultValidator do
         Map.put(acc, key, value)
       end
     end)
+  end
+
+  defp remove_sensitive_fields(result, _sanitization_rules) do
+    # For non-map inputs, return as-is
+    result
   end
 
   defp normalize_data_types(result) when is_map(result) do
